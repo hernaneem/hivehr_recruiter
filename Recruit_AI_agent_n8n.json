@@ -1,0 +1,526 @@
+{
+  "name": "Recruit AI agent",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "jobs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.body.job_id }}"
+            }
+          ]
+        }
+      },
+      "id": "dc79ba5e-8d7d-43af-beb1-36328341240a",
+      "name": "Supabase Get Job",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5abKWNKeCqqMUQdR",
+          "name": "Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-cv",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "CORS-Headers",
+                "value": "={\n  \"Access-Control-Allow-Origin\": \"*\",\n  \"Access-Control-Allow-Methods\": \"POST, OPTIONS, GET\",\n  \"Access-Control-Allow-Headers\": \"Content-Type, Authorization\",\n  \"Access-Control-Max-Age\": \"86400\"\n}"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "7cca54fc-e3b1-4be9-8909-d5024916b384",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "4ebd09c8-45c5-4fce-8ed6-d0615a18fcf0"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "job_required_skills",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "job_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "id": "5a4df897-7bfd-40ee-8a7f-b4911f6f3a0e",
+      "name": "Supabase GET JOB SKILLS",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "executeOnce": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5abKWNKeCqqMUQdR",
+          "name": "Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://seivllrcgrbvohfieyyh.supabase.co/storage/v1/object/public/candidate-cvs/{{ $('Webhook').item.json.body.cv_file_path }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 300000
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "cv_file"
+            }
+          }
+        }
+      },
+      "id": "fac4251e-23fc-45ff-9bd3-dd66c12e8b3e",
+      "name": "Get CV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/files",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "purpose",
+              "value": "ocr"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "cv_file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "28082c8a-006b-44eb-94e0-090854e29c56",
+      "name": "Upload to Mistral",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lObuwIcm5EXtGar5",
+          "name": "Mistral Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mistral.ai/v1/files/{{ $json.id }}/url",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "expiry",
+              "value": "24"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b72df5ad-ec6f-4d04-b645-43d83371f140",
+      "name": "Get signed URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lObuwIcm5EXtGar5",
+          "name": "Mistral Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/ocr",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral-ocr-latest\",\n  \"document\": {\n    \"type\": \"document_url\",\n    \"document_url\": \"{{ $json.url }}\"\n  },\n  \"include_image_base64\": true\n}",
+        "options": {}
+      },
+      "id": "01714461-d951-4e13-9a3e-1daf8b426ba8",
+      "name": "Get OCR results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lObuwIcm5EXtGar5",
+          "name": "Mistral Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-4-TURBO"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analiza este CV contra los criterios específicos del trabajo y responde ÚNICAMENTE en formato JSON válido.\n\nINFORMACIÓN DEL TRABAJO:\n- Título: {{ $('Supabase Get Job').item.json.title }}\n- Empresa: {{ $('Supabase Get Job').item.json.company }}\n- Nivel requerido: {{ $('Supabase Get Job').item.json.experience_level }}\n- Ubicación: {{ $('Supabase Get Job').item.json.location }}\n\nDESCRIPCIÓN DEL TRABAJO:\n{{ $('Supabase Get Job').item.json.description }}\n\nREQUISITOS ESPECÍFICOS:\n{{ $('Supabase Get Job').item.json.requirements }}\n\nHABILIDADES TÉCNICAS REQUERIDAS:\n{{ $('Supabase GET JOB SKILLS').item.json.skill_name }} {{ $('Supabase GET JOB SKILLS').item.json.alternatives }}- Importancia: {{ $('Supabase GET JOB SKILLS').item.json.importance_level }}/5 - Años mínimos: {{ $('Supabase GET JOB SKILLS').item.json.min_years }}\n\nCONTENIDO DEL CV EXTRAÍDO POR MISTRAL:\n{{ $json.pages[0].markdown }} {{ $json.pages[1].markdown }}\n\nINSTRUCCIONES DE ANÁLISIS:\n1. Analiza todo el contenido del CV extraído\n2. Brinda los datos de la persona como nombre, número y correo como datos por separado para ser utilizados en la base de datos.\n3. Evalúa cada habilidad requerida contra lo que tiene el candidato\n4. Compara años de experiencia vs requisitos mínimos\n5. Considera el nivel del puesto ({{ $('Supabase Get Job').item.json.experience_level }})\n6. Identifica fortalezas específicas donde el candidato destaca\n7. Señala áreas de mejora o habilidades faltantes\n8. Calcula scores ponderados por importancia de cada habilidad\n9. Da recomendación final (yes/no/maybe) con justificación detallada\n10. Da un analisis final con el nombre ai_analysis para agregar a la base de datos.\n\nResponde ÚNICAMENTE con este JSON válido (sin markdown ni texto adicional):\n{\n  \"name\":\"Joaquin Hernandez Perez\"\n  \"email\": \"joaquin@gmail.com\"\n  \"phone\": \"5512345678\"\n  \"location\": \"CDMX, Mexico\"\n  \"linkedin_url\": \"https://www.linkedin.com/in/patperez/\"\n  \"ai_analysis\": \"El candidato muestra conocimiento en el área; sin embargo le hace conocimiento en algunas herramientas que se solicitan\"\n  \"overall_score\": 8,\n  \"match_percentage\": 85,\n  \"technical_score\": 9,\n  \"experience_score\": 7,\n  \"education_score\": 8,\n  \"strengths\": [\n    \"Experiencia sólida en React con 5+ años documentados\",\n    \"Conocimiento avanzado en TypeScript según proyectos mostrados\",\n    \"Experiencia comprobada en liderazgo de equipos técnicos\"\n  ],\n  \"improvement_areas\": [\n    \"Falta experiencia específica en Node.js para backend\",\n    \"Sin certificaciones AWS o cloud computing mencionadas\",\n    \"Experiencia limitada en testing automatizado\"\n  ],\n  \"missing_skills\": [\n    \"Docker y Kubernetes\",\n    \"Experiencia en microservicios\",\n    \"CI/CD pipelines\"\n  ],\n  \"exceeded_requirements\": [\n    \"Supera los años mínimos requeridos en React\",\n    \"Conocimientos adicionales en Python y data science\",\n    \"Experiencia internacional en equipos remotos\"\n  ],\n  \"recommendation\": \"yes\",\n  \"recommendation_reason\": \"Candidato altamente calificado que cumple y excede los requisitos técnicos principales. Su experiencia sólida en React (5+ años vs 4 requeridos) y comprobada capacidad de liderazgo lo hacen ideal para el rol senior. Las habilidades faltantes son secundarias y pueden desarrollarse en el puesto.\",\n  \"criteria_scores\": {\n    \"React\": 9/10,\n    \"TypeScript\": 8/10,\n    \"JavaScript\": 9/10,\n    \"Git\": 8/10,\n    \"Leadership\": 7/10,\n    \"CSS\": 8/10\n  },\n  \"extracted_candidate_info\": {\n    \"name\": \"Nombre completo extraído\",\n    \"total_experience_years\": 6,\n    \"education\": \"Grado académico obtenido\",\n    \"current_role\": \"Puesto actual\",\n    \"key_companies\": [\"Empresa más relevante 1\", \"Empresa más relevante 2\"],\n    \"location\": \"Ubicación actual del candidato\"\n  }\n  \"refusal\": {\n  \"overall_score\": >=7,\n  \"refusal\": \"yes\",\n  \"refusal_reason\": \"La persona no cuenta con las habilidades necesarias para esta vacante por diferentes razones como...\"\n  }\n}"
+            },
+            {
+              "content": "Eres un experto reclutador técnico con 20+ años de experiencia. Especialízate en análisis objetivo de CVs contra criterios específicos de trabajo. Siempre responde en formato JSON válido sin markdown.",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "id": "4b25503a-5728-4b51-8344-8514c6a1ae3e",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        1560,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "UEi9rLSXgCFRNolS",
+          "name": "Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "candidate_analyses",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "candidate_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "job_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.job_id }}"
+            },
+            {
+              "fieldId": "overall_score",
+              "fieldValue": "={{ Math.round($('OpenAI').item.json.message.content.overall_score) }}"
+            },
+            {
+              "fieldId": "match_percentage",
+              "fieldValue": "={{ Math.round($('OpenAI').item.json.message.content.match_percentage) }}"
+            },
+            {
+              "fieldId": "technical_score",
+              "fieldValue": "={{ Math.round($('OpenAI').item.json.message.content.technical_score) }}"
+            },
+            {
+              "fieldId": "experience_score",
+              "fieldValue": "={{ Math.round($('OpenAI').item.json.message.content.experience_score) }}"
+            },
+            {
+              "fieldId": "education_score",
+              "fieldValue": "={{ Math.round($('OpenAI').item.json.message.content.education_score) }}"
+            },
+            {
+              "fieldId": "strengths",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.strengths }}"
+            },
+            {
+              "fieldId": "improvement_areas",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.improvement_areas }}"
+            },
+            {
+              "fieldId": "missing_skills",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.missing_skills }}"
+            },
+            {
+              "fieldId": "exceeded_requirements",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.exceeded_requirements }}"
+            },
+            {
+              "fieldId": "recommendation",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.recommendation }}"
+            },
+            {
+              "fieldId": "recommendation_reason",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.recommendation_reason }}"
+            },
+            {
+              "fieldId": "criteria_scores",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.criteria_scores }}"
+            },
+            {
+              "fieldId": "ai_analysis",
+              "fieldValue": "={{ $('OpenAI').item.json.message.content.ai_analysis }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2120,
+        0
+      ],
+      "id": "bd7ec680-17ba-4423-b4c8-25ac8c52b824",
+      "name": "Candidate Analyses",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5abKWNKeCqqMUQdR",
+          "name": "Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "candidates",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $json.message.content.name }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.message.content.email }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.message.content.phone }}"
+            },
+            {
+              "fieldId": "cv_file_path",
+              "fieldValue": "={{ $('Get signed URL').item.json.url }}"
+            },
+            {
+              "fieldId": "cv_text",
+              "fieldValue": "={{ $('Get OCR results').item.json.pages[0].markdown }}"
+            },
+            {
+              "fieldId": "linkedin_url",
+              "fieldValue": "={{ $json.message.content.linkedin_url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        0
+      ],
+      "id": "3e01d645-bf1c-4c8c-924a-400912bdc27e",
+      "name": "Add candidate",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5abKWNKeCqqMUQdR",
+          "name": "Recruit AI Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Análisis de CV completado exitosamente\",\n  \"data\": {\n    \"candidate_id\": \"{{ $json.candidate_id }}\",\n    \"job_id\": \"{{ $json.job_id }}\",\n    \"overall_score\": {{ $json.overall_score }},\n    \"match_percentage\": {{ $json.match_percentage }},\n    \"recommendation\": \"{{ $json.recommendation }}\",\n    \"strengths_count\": {{$json.strengths.length }},\n    \"improvement_areas_count\": {{ $json.improvement_areas.length }},\n    \"analysis_summary\": {\n      \"technical_score\": {{ $json.technical_score }},\n      \"experience_score\": {{ $json.experience_score }},\n      \"education_score\": {{ $json.education_score }}\n    }\n  },\n  \"metadata\": {\n    \"processed_at\": \"{{ $now }}\",\n    \"workflow_version\": \"1.0\",\n    \"processing_time_ms\": \"{{ Math.round(($executionId - $executionId) * 1000) }}\"\n  }\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        2340,
+        0
+      ],
+      "id": "21218e45-e2d5-49d9-9c12-ea6ee0a02ddd",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Supabase Get Job": {
+      "main": [
+        [
+          {
+            "node": "Supabase GET JOB SKILLS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Supabase Get Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase GET JOB SKILLS": {
+      "main": [
+        [
+          {
+            "node": "Get CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get CV": {
+      "main": [
+        [
+          {
+            "node": "Upload to Mistral",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Mistral": {
+      "main": [
+        [
+          {
+            "node": "Get signed URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get signed URL": {
+      "main": [
+        [
+          {
+            "node": "Get OCR results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get OCR results": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Add candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add candidate": {
+      "main": [
+        [
+          {
+            "node": "Candidate Analyses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Candidate Analyses": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "0b31551e-3eba-45b8-9a7e-367714872a0c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f0b6504e5b997bb1a43d1ecb695a455966fa7ba26d3e9668a0010b41f58753ec"
+  },
+  "id": "5IbqPYGxQRCInqBL",
+  "tags": []
+}
