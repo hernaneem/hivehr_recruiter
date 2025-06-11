@@ -1,7 +1,12 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import LandingPage from './components/LandingPage'
 import Dashboard from './components/Dashboard'
+import CleaverTestPage from './components/CleaverTestPage'
+import CleaverTestInterface from './components/CleaverTestInterface'
+import CleaverTestCompleted from './components/CleaverTestCompleted'
 import { JobsProvider } from './contexts/JobsContext'
+import { CleaverProvider } from './contexts/CleaverContext'
 
 function App() {
   const { user, loading } = useAuth()
@@ -17,12 +22,28 @@ function App() {
     )
   }
 
-  return user ? (
-    <JobsProvider>
-      <Dashboard />
-    </JobsProvider>
-  ) : (
-    <LandingPage />
+  return (
+    <Router>
+      <CleaverProvider>
+        <Routes>
+          {/* Rutas públicas para tests de candidatos */}
+          <Route path="/cleaver-test/:token" element={<CleaverTestPage />} />
+          <Route path="/cleaver-test/:token/start" element={<CleaverTestInterface />} />
+          <Route path="/cleaver-test/:token/completed" element={<CleaverTestCompleted />} />
+          
+          {/* Rutas autenticadas */}
+          <Route path="/*" element={
+            user ? (
+              <JobsProvider>
+                <Dashboard />
+              </JobsProvider>
+            ) : (
+              <LandingPage />
+            )
+          } />
+        </Routes>
+      </CleaverProvider>
+    </Router>
   )
 }
 

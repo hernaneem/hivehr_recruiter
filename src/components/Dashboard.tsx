@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useJobs } from '../contexts/JobsContext';
 import JobsList from './JobsList';
 import CVAnalysis from './CVAnalysis';
+import Tests from './Tests';
 import { 
   Brain, 
   Plus, 
@@ -17,7 +18,8 @@ import {
   Briefcase,
   Upload,
   Clock,
-  Target
+  Target,
+  ClipboardList
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -30,6 +32,7 @@ const Dashboard = () => {
     { id: 'create-job', label: 'Crear Trabajo', icon: Plus },
     { id: 'jobs', label: 'Mis Trabajos', icon: Briefcase },
     { id: 'analysis', label: 'Análisis CVs', icon: FileText },
+    { id: 'tests', label: 'Tests', icon: ClipboardList },
     { id: 'settings', label: 'Configuración', icon: Settings },
   ];
 
@@ -172,6 +175,9 @@ const Dashboard = () => {
 
       case 'analysis':
         return <CVAnalysis />;
+
+      case 'tests':
+        return <Tests />;
 
       case 'settings':
         return (
