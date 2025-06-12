@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Brain, 
   User, 
@@ -7,7 +7,7 @@ import {
   Download, 
   TrendingUp, 
   Target, 
-  Eye,
+
   BarChart3,
   PieChart,
   ArrowUp,

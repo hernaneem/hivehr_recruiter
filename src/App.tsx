@@ -5,8 +5,12 @@ import Dashboard from './components/Dashboard'
 import CleaverTestPage from './components/CleaverTestPage'
 import CleaverTestInterface from './components/CleaverTestInterface'
 import CleaverTestCompleted from './components/CleaverTestCompleted'
+import MossTestPage from './components/MossTestPage'
+import MossTestInterface from './components/MossTestInterface'
+import MossTestCompleted from './components/MossTestCompleted'
 import { JobsProvider } from './contexts/JobsContext'
 import { CleaverProvider } from './contexts/CleaverContext'
+import { MossProvider } from './contexts/MossContext'
 
 function App() {
   const { user, loading } = useAuth()
@@ -25,23 +29,30 @@ function App() {
   return (
     <Router>
       <CleaverProvider>
-        <Routes>
-          {/* Rutas públicas para tests de candidatos */}
-          <Route path="/cleaver-test/:token" element={<CleaverTestPage />} />
-          <Route path="/cleaver-test/:token/start" element={<CleaverTestInterface />} />
-          <Route path="/cleaver-test/:token/completed" element={<CleaverTestCompleted />} />
-          
-          {/* Rutas autenticadas */}
-          <Route path="/*" element={
-            user ? (
-              <JobsProvider>
-                <Dashboard />
-              </JobsProvider>
-            ) : (
-              <LandingPage />
-            )
-          } />
-        </Routes>
+        <MossProvider>
+          <Routes>
+            {/* Rutas públicas para tests de candidatos */}
+            <Route path="/cleaver-test/:token" element={<CleaverTestPage />} />
+            <Route path="/cleaver-test/:token/start" element={<CleaverTestInterface />} />
+            <Route path="/cleaver-test/:token/completed" element={<CleaverTestCompleted />} />
+            
+            {/* Rutas públicas para tests MOSS */}
+            <Route path="/moss-test/:token" element={<MossTestPage />} />
+            <Route path="/moss-test/:token/start" element={<MossTestInterface />} />
+            <Route path="/moss-test/:token/completed" element={<MossTestCompleted />} />
+            
+            {/* Rutas autenticadas */}
+            <Route path="/*" element={
+              user ? (
+                <JobsProvider>
+                  <Dashboard />
+                </JobsProvider>
+              ) : (
+                <LandingPage />
+              )
+            } />
+          </Routes>
+        </MossProvider>
       </CleaverProvider>
     </Router>
   )
