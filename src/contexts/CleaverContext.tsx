@@ -170,6 +170,8 @@ export const CleaverProvider: React.FC<CleaverProviderProps> = ({ children }) =>
       setLoading(true);
       setError('');
 
+      console.log('🔍 CleaverContext - Cargando candidatos para recruiter:', user.id);
+
       // Obtener candidatos con análisis aprobados para este reclutador
       const { data: candidatesData, error: candidatesError } = await supabase
         .from('candidates')
@@ -194,9 +196,12 @@ export const CleaverProvider: React.FC<CleaverProviderProps> = ({ children }) =>
           )
         `)
         .eq('candidate_analyses.jobs.recruiter_id', user.id)
-        .eq('candidate_analyses.recommendation', 'yes'); // Solo candidatos aprobados
+        .in('candidate_analyses.recommendation', ['yes', 'maybe']); // Candidatos aprobados y viables
 
       if (candidatesError) throw candidatesError;
+
+      console.log('🔍 CleaverContext - Candidatos obtenidos de BD:', candidatesData?.length || 0);
+      console.log('🔍 CleaverContext - Datos completos:', candidatesData);
 
       // Obtener tests existentes para estos candidatos
       const candidateIds = candidatesData?.map(c => c.id) || [];
@@ -221,7 +226,7 @@ export const CleaverProvider: React.FC<CleaverProviderProps> = ({ children }) =>
           position: analysis?.jobs?.[0]?.title || 'Sin especificar',
           job_title: analysis?.jobs?.[0]?.title,
           job_id: analysis?.job_id,
-          cv_status: 'approved' as const,
+          cv_status: analysis?.recommendation === 'yes' ? 'approved' as const : 'reviewing' as const,
           cv_review_date: analysis?.processed_at,
           years_experience: candidate.years_experience,
           created_at: candidate.created_at,
@@ -235,6 +240,9 @@ export const CleaverProvider: React.FC<CleaverProviderProps> = ({ children }) =>
           } : undefined
         };
       }) || [];
+
+      console.log('🔍 CleaverContext - Candidatos procesados:', candidatesWithTests.length);
+      console.log('🔍 CleaverContext - Candidatos finales:', candidatesWithTests);
 
       setCandidates(candidatesWithTests);
       await refreshStats();

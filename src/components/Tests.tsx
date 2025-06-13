@@ -1,13 +1,25 @@
-import React, { useState } from 'react';
-import { Users, FileText, CheckCircle, Clock, AlertCircle, Send, Eye, Download, Filter, Brain, Target, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, FileText, CheckCircle, Clock, AlertCircle, Send, Eye, Download, Filter, Brain, Target, Copy, Briefcase } from 'lucide-react';
 import { useCleaver } from '../contexts/CleaverContext';
 import { useMoss } from '../contexts/MossContext';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 import type { CandidateWithTestInfo } from '../contexts/CleaverContext';
 import type { CandidateWithMossInfo } from '../contexts/MossContext';
 import CleaverResultsDashboard from './CleaverResultsDashboard';
 import MossResultsDashboard from './MossResultsDashboard';
 
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  status: string;
+  created_at: string;
+  approved_candidates_count?: number;
+}
+
 const Tests = () => {
+  const { user } = useAuth();
   const { 
     candidates: cleaverCandidates, 
     stats: cleaverStats, 
@@ -35,6 +47,76 @@ const Tests = () => {
   const [filter, setFilter] = useState('all');
   const [testResults, setTestResults] = useState<any>(null);
   const [showResultsDashboard, setShowResultsDashboard] = useState(false);
+
+  // Estados para el selector de trabajos
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>('all');
+  const [jobsLoading, setJobsLoading] = useState(true);
+
+  // Cargar trabajos activos con candidatos aprobados
+  const loadActiveJobs = async () => {
+    if (!user?.id) return;
+
+    try {
+      setJobsLoading(true);
+      
+      console.log('🔍 Tests - Cargando trabajos para recruiter:', user.id);
+      
+      // Primero obtener todos los trabajos activos
+      const { data: allJobsData, error: allJobsError } = await supabase
+        .from('jobs')
+        .select('id, title, company, status, created_at')
+        .eq('recruiter_id', user.id)
+        .eq('status', 'active');
+
+      if (allJobsError) throw allJobsError;
+
+      // Luego contar candidatos viables por trabajo
+      const jobsWithCounts: Job[] = [];
+      
+      for (const job of allJobsData || []) {
+        const { data: candidatesCount, error: countError } = await supabase
+          .from('candidate_analyses')
+          .select('candidate_id')
+          .eq('job_id', job.id)
+          .in('recommendation', ['yes', 'maybe']);
+
+        if (countError) {
+          console.error('Error contando candidatos para trabajo:', job.id, countError);
+          continue;
+        }
+
+        // Contar candidatos únicos
+        const uniqueCandidates = new Set(candidatesCount?.map(c => c.candidate_id) || []);
+        
+        if (uniqueCandidates.size > 0) {
+          jobsWithCounts.push({
+            id: job.id,
+            title: job.title,
+            company: job.company,
+            status: job.status,
+            created_at: job.created_at,
+            approved_candidates_count: uniqueCandidates.size
+          });
+        }
+      }
+
+      console.log('🔍 Tests - Trabajos procesados:', jobsWithCounts.length);
+      console.log('🔍 Tests - Trabajos finales:', jobsWithCounts);
+      
+      setJobs(jobsWithCounts);
+
+    } catch (error) {
+      console.error('Error cargando trabajos:', error);
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  // Cargar trabajos al montar el componente
+  useEffect(() => {
+    loadActiveJobs();
+  }, [user?.id]);
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -146,8 +228,14 @@ const Tests = () => {
     const candidates = activeTab === 'cleaver' ? cleaverCandidates : mossCandidates;
     
     return candidates.filter(candidate => {
+      // Filtrar por trabajo seleccionado
+      if (selectedJobId !== 'all' && candidate.job_id !== selectedJobId) {
+        return false;
+      }
+      
+      // Filtrar por estado
       if (filter === 'all') return true;
-      if (filter === 'cv-approved') return candidate.cv_status === 'approved';
+      if (filter === 'cv-approved') return candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing';
       
       if (activeTab === 'cleaver') {
         const cleaverCandidate = candidate as CandidateWithTestInfo;
@@ -403,6 +491,68 @@ const Tests = () => {
         </p>
       </div>
 
+      {/* Selector de Trabajos */}
+      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+        <div className="flex items-center space-x-3 mb-4">
+          <Briefcase className="h-5 w-5 text-white/70" />
+          <h2 className="text-lg font-semibold text-white">Seleccionar Trabajo</h2>
+        </div>
+        
+        {jobsLoading ? (
+          <div className="flex items-center space-x-2 text-white/70">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
+            <span>Cargando trabajos...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Opción "Todos los trabajos" */}
+            <button
+              onClick={() => setSelectedJobId('all')}
+              className={`p-4 rounded-lg border transition-all text-left ${
+                selectedJobId === 'all'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 border-purple-400 text-white'
+                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <div className="font-semibold">Todos los Trabajos</div>
+              <div className="text-sm opacity-75">
+                Ver candidatos de todas las posiciones
+              </div>
+              <div className="text-xs mt-2 opacity-60">
+                {(cleaverCandidates.length || mossCandidates.length)} candidatos totales
+              </div>
+            </button>
+
+            {/* Trabajos específicos */}
+            {jobs.map(job => (
+              <button
+                key={job.id}
+                onClick={() => setSelectedJobId(job.id)}
+                className={`p-4 rounded-lg border transition-all text-left ${
+                  selectedJobId === job.id
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 border-purple-400 text-white'
+                    : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="font-semibold">{job.title}</div>
+                <div className="text-sm opacity-75">{job.company}</div>
+                <div className="text-xs mt-2 opacity-60">
+                  {job.approved_candidates_count} candidatos viables
+                </div>
+              </button>
+            ))}
+
+            {jobs.length === 0 && (
+              <div className="col-span-full text-center py-8 text-white/50">
+                <Briefcase className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No hay trabajos activos con candidatos viables</p>
+                <p className="text-sm mt-1">Los candidatos aparecerán aquí una vez que tengas CVs aprobados o viables</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
@@ -468,7 +618,7 @@ const Tests = () => {
                 : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
             }`}
           >
-            CV Aprobado
+            CV Viable
           </button>
           <button
             onClick={() => setFilter('test-pending')}
@@ -541,7 +691,7 @@ const Tests = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-3">
-                        {candidate.cv_status === 'approved' && !candidate.test_token && (
+                        {(candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing') && !candidate.test_token && (
                           <button
                             onClick={() => activeTab === 'cleaver' 
                               ? sendCleaverInvitation(candidate.id)
@@ -554,7 +704,7 @@ const Tests = () => {
                           </button>
                         )}
 
-                        {candidate.cv_status === 'approved' && candidate.test_token && testStatus !== 'completed' && (
+                        {(candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing') && candidate.test_token && testStatus !== 'completed' && (
                           <button
                             onClick={() => {
                               setSelectedCandidate(candidate as any);
@@ -612,6 +762,37 @@ const Tests = () => {
               })}
             </tbody>
           </table>
+          
+          {/* Mensaje cuando no hay candidatos */}
+          {filteredCandidates().length === 0 && (
+            <div className="text-center py-12 px-6">
+              <div className="text-white/50 mb-4">
+                {selectedJobId === 'all' ? (
+                  <>
+                    <Users className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">No hay candidatos disponibles</h3>
+                    <p className="text-sm">
+                      No tienes candidatos viables para aplicar tests.
+                    </p>
+                    <p className="text-sm mt-2">
+                      Los candidatos aparecerán aquí una vez que tengas CVs aprobados o viables en la sección de Análisis.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">No hay candidatos para este trabajo</h3>
+                    <p className="text-sm">
+                      No hay candidatos viables para la posición seleccionada.
+                    </p>
+                    <p className="text-sm mt-2">
+                      Selecciona "Todos los Trabajos" para ver candidatos de otras posiciones.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

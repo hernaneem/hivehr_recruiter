@@ -167,6 +167,8 @@ export const MossProvider: React.FC<MossProviderProps> = ({ children }) => {
       setLoading(true);
       setError('');
 
+      console.log('🔍 MossContext - Cargando candidatos para recruiter:', user.id);
+
       // Obtener candidatos con análisis aprobados para este reclutador
       const { data: candidatesData, error: candidatesError } = await supabase
         .from('candidates')
@@ -191,9 +193,12 @@ export const MossProvider: React.FC<MossProviderProps> = ({ children }) => {
           )
         `)
         .eq('candidate_analyses.jobs.recruiter_id', user.id)
-        .eq('candidate_analyses.recommendation', 'yes'); // Solo candidatos aprobados
+        .in('candidate_analyses.recommendation', ['yes', 'maybe']); // Candidatos aprobados y viables
 
       if (candidatesError) throw candidatesError;
+
+      console.log('🔍 MossContext - Candidatos obtenidos de BD:', candidatesData?.length || 0);
+      console.log('🔍 MossContext - Datos completos:', candidatesData);
 
       // Obtener información de tests MOSS para estos candidatos
       const candidateIds = candidatesData?.map(c => c.id) || [];
@@ -226,7 +231,7 @@ export const MossProvider: React.FC<MossProviderProps> = ({ children }) => {
            position: jobInfo?.title || 'No especificado',
            job_title: jobInfo?.title,
            job_id: analysisInfo?.job_id, // Usar job_id del análisis
-           cv_status: 'approved' as const,
+           cv_status: analysisInfo?.recommendation === 'yes' ? 'approved' as const : 'reviewing' as const,
            cv_review_date: candidate.candidate_analyses?.[0]?.processed_at,
           
           // Información del test MOSS
@@ -248,6 +253,9 @@ export const MossProvider: React.FC<MossProviderProps> = ({ children }) => {
           } : undefined
         };
       }) || [];
+
+      console.log('🔍 MossContext - Candidatos procesados:', candidatesWithMossInfo.length);
+      console.log('🔍 MossContext - Candidatos finales:', candidatesWithMossInfo);
 
       setCandidates(candidatesWithMossInfo);
       await refreshStats();
