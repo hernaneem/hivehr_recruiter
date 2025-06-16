@@ -8,6 +8,7 @@ import type { CandidateWithTestInfo } from '../contexts/CleaverContext';
 import type { CandidateWithMossInfo } from '../contexts/MossContext';
 import CleaverResultsDashboard from './CleaverResultsDashboard';
 import MossResultsDashboard from './MossResultsDashboard';
+import PsychometricTests from './PsychometricTests';
 
 interface Job {
   id: string;
@@ -40,7 +41,7 @@ const Tests = () => {
     exportTestResults: exportMossTestResults
   } = useMoss();
 
-  const [activeTab, setActiveTab] = useState<'cleaver' | 'moss'>('cleaver');
+  const [activeTab, setActiveTab] = useState<'cleaver' | 'moss' | 'terman'>('cleaver');
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateWithTestInfo | null>(null);
 
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -481,12 +482,25 @@ const Tests = () => {
             <Target className="h-5 w-5" />
             <span>Test MOSS</span>
           </button>
+          <button
+            onClick={() => setActiveTab('terman')}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+              activeTab === 'terman'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+            }`}
+          >
+            <Brain className="h-5 w-5" />
+            <span>Test Terman-Merrill</span>
+          </button>
         </div>
 
         <p className="text-white/70">
           {activeTab === 'cleaver' 
             ? 'Gestión de evaluaciones Cleaver (DISC) para candidatos'
-            : 'Gestión de evaluaciones MOSS (Habilidades Interpersonales) para candidatos'
+            : activeTab === 'moss'
+            ? 'Gestión de evaluaciones MOSS (Habilidades Interpersonales) para candidatos'
+            : 'Gestión de evaluaciones Terman-Merrill (Inteligencia) para candidatos'
           }
         </p>
       </div>
@@ -596,52 +610,58 @@ const Tests = () => {
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-        <div className="flex items-center space-x-4">
-          <Filter className="h-5 w-5 text-white/70" />
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              filter === 'all' 
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-          >
-            Todos
-          </button>
-          <button
-            onClick={() => setFilter('cv-approved')}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              filter === 'cv-approved' 
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-          >
-            CV Viable
-          </button>
-          <button
-            onClick={() => setFilter('test-pending')}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              filter === 'test-pending' 
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-          >
-            Test Pendiente
-          </button>
-          <button
-            onClick={() => setFilter('test-completed')}
-            className={`px-4 py-2 rounded-lg transition-all ${
-              filter === 'test-completed' 
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-          >
-            Test Completado
-          </button>
-        </div>
-      </div>
+      {/* Renderizar contenido según pestaña activa */}
+      {activeTab === 'terman' ? (
+        // Componente de Tests Psicométricos Terman-Merrill
+        <PsychometricTests />
+      ) : (
+        <>
+          {/* Filtros */}
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="flex items-center space-x-4">
+              <Filter className="h-5 w-5 text-white/70" />
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filter === 'all' 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                    : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setFilter('cv-approved')}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filter === 'cv-approved' 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                    : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                }`}
+              >
+                CV Viable
+              </button>
+              <button
+                onClick={() => setFilter('test-pending')}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filter === 'test-pending' 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                    : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                }`}
+              >
+                Test Pendiente
+              </button>
+              <button
+                onClick={() => setFilter('test-completed')}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filter === 'test-completed' 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                    : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                }`}
+              >
+                Test Completado
+              </button>
+            </div>
+          </div>
 
       {/* Tabla de candidatos */}
       <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 overflow-hidden">
@@ -926,6 +946,8 @@ const Tests = () => {
             setTestResults(null);
           }}
         />
+      )}
+        </>
       )}
     </div>
   );
