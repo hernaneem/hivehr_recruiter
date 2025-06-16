@@ -12,7 +12,9 @@ import {
   Search,
   BarChart3,
   Sparkles,
-  Activity
+  Activity,
+  TrendingUp,
+  Award
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -280,212 +282,111 @@ const PsychometricTests: React.FC = () => {
     );
   }
 
-  // Renderizar página principal
+  // Vista principal simplificada para la pestaña de Tests
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 mb-6">
-          <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Stats rápidas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+          <div className="flex items-center space-x-3">
+            <Users className="h-8 w-8 text-blue-400" />
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Tests Psicométricos</h1>
-              <p className="text-white/70">
-                Evalúa las capacidades y características de tus candidatos
-              </p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-lg">
-                <Brain className="h-8 w-8 text-white" />
-              </div>
+              <div className="text-2xl font-bold text-white">{candidates.length}</div>
+              <div className="text-white/60 text-sm">Candidatos Disponibles</div>
             </div>
           </div>
         </div>
-
-        {/* Tests disponibles */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-white mb-4">Tests Disponibles</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {testTypes.map((test) => (
-              <div
-                key={test.id}
-                className={`bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 
-                  ${test.available ? 'hover:bg-white/20 cursor-pointer' : 'opacity-50'} transition-all`}
-              >
-                <div className={`bg-gradient-to-r ${test.color} p-3 rounded-lg w-fit mb-4`}>
-                  <test.icon className="h-6 w-6 text-white" />
-                </div>
-                
-                <h3 className="text-lg font-semibold text-white mb-2">{test.name}</h3>
-                <p className="text-white/70 text-sm mb-3">{test.description}</p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 text-white/60">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-sm">{test.duration}</span>
-                  </div>
-                  
-                  {test.available ? (
-                    <span className="text-green-400 text-sm flex items-center space-x-1">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Disponible</span>
-                    </span>
-                  ) : (
-                    <span className="text-yellow-400 text-sm">Próximamente</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Filtros y búsqueda */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/50" />
-                <input
-                  type="text"
-                  placeholder="Buscar candidato..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
+        
+        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+          <div className="flex items-center space-x-3">
+            <Brain className="h-8 w-8 text-green-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">{testResults.length}</div>
+              <div className="text-white/60 text-sm">Tests Completados</div>
             </div>
-            
-            <button className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">
-              <Filter className="h-5 w-5" />
-              <span>Filtros</span>
-            </button>
           </div>
         </div>
-
-        {/* Lista de candidatos */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
-          <div className="p-6 border-b border-white/20">
-            <h2 className="text-xl font-semibold text-white">Candidatos Disponibles</h2>
-          </div>
-          
-          <div className="divide-y divide-white/10">
-            {filteredCandidates.length === 0 ? (
-              <div className="p-12 text-center">
-                <Users className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                <p className="text-white/60">No se encontraron candidatos</p>
+        
+        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+          <div className="flex items-center space-x-3">
+            <BarChart3 className="h-8 w-8 text-purple-400" />
+            <div>
+              <div className="text-2xl font-bold text-white">
+                {testResults.length > 0 ? Math.round(testResults.reduce((acc, r) => acc + (r.iq || 0), 0) / testResults.length) : 0}
               </div>
-            ) : (
-              filteredCandidates.map((candidate) => {
-                const candidateResults = testResults.filter(r => r.candidate_id === candidate.id);
-                
-                return (
-                  <div key={candidate.id} className="p-6 hover:bg-white/5 transition-all">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium text-white">{candidate.name}</h3>
-                        <p className="text-white/60 text-sm">{candidate.email}</p>
-                        {candidate.job_title && (
-                          <p className="text-white/50 text-sm mt-1">
-                            Puesto: {candidate.job_title}
-                          </p>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        {/* Tests completados */}
-                        {candidateResults.length > 0 && (
-                          <div className="flex space-x-2">
-                            {candidateResults.map((result) => (
-                              <button
-                                key={result.id}
-                                onClick={() => handleViewResults(result)}
-                                className="flex items-center space-x-2 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-all"
-                              >
-                                <Eye className="h-4 w-4" />
-                                <span className="text-sm">
-                                  {result.test_type === 'terman-merrill' && `CI: ${result.iq}`}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {/* Botón para iniciar test */}
-                        <div className="relative group">
-                          <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all">
-                            <span>Aplicar Test</span>
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                          
-                          {/* Dropdown de tests */}
-                          <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                            {testTypes.filter(t => t.available).map((test) => (
-                              <button
-                                key={test.id}
-                                onClick={() => handleStartTest(test.id, candidate)}
-                                className="w-full text-left px-4 py-3 text-white hover:bg-white/10 transition-all first:rounded-t-lg last:rounded-b-lg"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <test.icon className="h-5 w-5" />
-                                  <span>{test.name}</span>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
+              <div className="text-white/60 text-sm">CI Promedio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de candidatos */}
+      <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
+        <div className="p-6 border-b border-white/20">
+          <h2 className="text-xl font-semibold text-white">Test Terman-Merrill - Candidatos</h2>
+        </div>
+        
+        <div className="divide-y divide-white/10">
+          {loading ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <p className="text-white/60">Cargando candidatos...</p>
+            </div>
+          ) : filteredCandidates.length === 0 ? (
+            <div className="p-12 text-center">
+              <Users className="h-12 w-12 text-white/40 mx-auto mb-4" />
+              <p className="text-white/60">No se encontraron candidatos</p>
+            </div>
+          ) : (
+            filteredCandidates.map((candidate) => {
+              const candidateResults = testResults.filter(r => r.candidate_id === candidate.id);
+              
+              return (
+                <div key={candidate.id} className="p-6 hover:bg-white/5 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-white">{candidate.name}</h3>
+                      <p className="text-white/60 text-sm">{candidate.email}</p>
+                      {candidate.job_title && (
+                        <p className="text-white/50 text-sm mt-1">
+                          Puesto: {candidate.job_title}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      {/* Tests completados */}
+                      {candidateResults.length > 0 && (
+                        <div className="flex space-x-2">
+                          {candidateResults.map((result) => (
+                            <button
+                              key={result.id}
+                              onClick={() => handleViewResults(result)}
+                              className="flex items-center space-x-2 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-all"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span className="text-sm">CI: {result.iq}</span>
+                            </button>
+                          ))}
                         </div>
-                      </div>
+                      )}
+                      
+                      {/* Botón para aplicar test */}
+                      {candidateResults.length === 0 && (
+                        <button
+                          onClick={() => handleStartTest('terman-merrill', candidate)}
+                          className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg transition-all"
+                        >
+                          <Brain className="h-4 w-4" />
+                          <span>Aplicar Test</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Estadísticas */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="h-8 w-8 text-purple-400" />
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {testResults.length}
-                </p>
-                <p className="text-white/60">Tests completados</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-            <div className="flex items-center space-x-3">
-              <Users className="h-8 w-8 text-blue-400" />
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {new Set(testResults.map(r => r.candidate_id)).size}
-                </p>
-                <p className="text-white/60">Candidatos evaluados</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-            <div className="flex items-center space-x-3">
-              <Brain className="h-8 w-8 text-green-400" />
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {testResults.filter(r => r.test_type === 'terman-merrill').length > 0
-                    ? Math.round(
-                        testResults
-                          .filter(r => r.test_type === 'terman-merrill' && r.iq)
-                          .reduce((acc, r) => acc + (r.iq || 0), 0) /
-                        testResults.filter(r => r.test_type === 'terman-merrill' && r.iq).length
-                      )
-                    : '-'}
-                </p>
-                <p className="text-white/60">CI Promedio</p>
-              </div>
-            </div>
-          </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

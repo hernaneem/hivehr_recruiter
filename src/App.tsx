@@ -8,9 +8,13 @@ import CleaverTestCompleted from './components/CleaverTestCompleted'
 import MossTestPage from './components/MossTestPage'
 import MossTestInterface from './components/MossTestInterface'
 import MossTestCompleted from './components/MossTestCompleted'
+import TermanTestPage from './components/TermanTestPage'
+import TermanTestInterface from './components/TermanTestInterface'
+import TermanTestCompleted from './components/TermanTestCompleted'
 import { JobsProvider } from './contexts/JobsContext'
 import { CleaverProvider } from './contexts/CleaverContext'
 import { MossProvider } from './contexts/MossContext'
+import { TermanMerrillProvider } from './contexts/TermanMerrillContext'
 
 function App() {
   const { user, loading } = useAuth()
@@ -30,28 +34,35 @@ function App() {
     <Router>
       <CleaverProvider>
         <MossProvider>
-          <Routes>
-            {/* Rutas públicas para tests de candidatos */}
-            <Route path="/cleaver-test/:token" element={<CleaverTestPage />} />
-            <Route path="/cleaver-test/:token/start" element={<CleaverTestInterface />} />
-            <Route path="/cleaver-test/:token/completed" element={<CleaverTestCompleted />} />
-            
-            {/* Rutas públicas para tests MOSS */}
-            <Route path="/moss-test/:token" element={<MossTestPage />} />
-            <Route path="/moss-test/:token/start" element={<MossTestInterface />} />
-            <Route path="/moss-test/:token/completed" element={<MossTestCompleted />} />
-            
-            {/* Rutas autenticadas */}
-            <Route path="/*" element={
-              user ? (
-                <JobsProvider>
-                  <Dashboard />
-                </JobsProvider>
-              ) : (
-                <LandingPage />
-              )
-            } />
-          </Routes>
+          <TermanMerrillProvider>
+            <Routes>
+              {/* Rutas públicas para tests de candidatos */}
+              <Route path="/cleaver-test/:token" element={<CleaverTestPage />} />
+              <Route path="/cleaver-test/:token/start" element={<CleaverTestInterface />} />
+              <Route path="/cleaver-test/:token/completed" element={<CleaverTestCompleted />} />
+              
+              {/* Rutas públicas para tests MOSS */}
+              <Route path="/moss-test/:token" element={<MossTestPage />} />
+              <Route path="/moss-test/:token/start" element={<MossTestInterface />} />
+              <Route path="/moss-test/:token/completed" element={<MossTestCompleted />} />
+              
+              {/* Rutas públicas para tests Terman-Merrill */}
+              <Route path="/terman-test/:token" element={<TermanTestPage />} />
+              <Route path="/terman-test/:token/start" element={<TermanTestInterface />} />
+              <Route path="/terman-test/:token/completed" element={<TermanTestCompleted />} />
+              
+              {/* Rutas autenticadas */}
+              <Route path="/*" element={
+                user ? (
+                  <JobsProvider>
+                    <Dashboard />
+                  </JobsProvider>
+                ) : (
+                  <LandingPage />
+                )
+              } />
+            </Routes>
+          </TermanMerrillProvider>
         </MossProvider>
       </CleaverProvider>
     </Router>
