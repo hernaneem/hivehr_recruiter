@@ -104,23 +104,52 @@ const PsychometricTests: React.FC = () => {
 
   const loadCandidates = async () => {
     try {
-      const { data, error } = await supabase
+      console.log('🔍 TermanTest - Cargando candidatos para recruiter:', user?.id);
+      
+      // Cargar candidatos con análisis aprobados (igual que CleaverContext)
+      const { data: candidatesData, error: candidatesError } = await supabase
         .from('candidates')
         .select(`
-          *,
-          jobs (
+          id,
+          name,
+          email,
+          phone,
+          created_at,
+          candidate_analyses!inner (
             id,
-            title
+            job_id,
+            recommendation,
+            processed_at,
+            jobs!inner (
+              id,
+              title,
+              company,
+              recruiter_id
+            )
           )
         `)
-        .order('created_at', { ascending: false });
+        .eq('candidate_analyses.jobs.recruiter_id', user?.id)
+        .in('candidate_analyses.recommendation', ['yes', 'maybe']); // Solo candidatos aprobados y viables
 
-      if (error) throw error;
+      if (candidatesError) throw candidatesError;
 
-      setCandidates(data?.map(c => ({
-        ...c,
-        job_title: c.jobs?.title
-      })) || []);
+      console.log('🔍 TermanTest - Candidatos obtenidos de BD:', candidatesData?.length || 0);
+
+      const formattedCandidates = candidatesData?.map(candidate => {
+        const analysis = candidate.candidate_analyses?.[0];
+        
+        return {
+          id: candidate.id,
+          name: candidate.name,
+          email: candidate.email,
+          job_id: analysis?.job_id || '',
+          job_title: analysis?.jobs?.[0]?.title || 'Sin especificar',
+          created_at: candidate.created_at
+        };
+      }) || [];
+
+      console.log('🔍 TermanTest - Candidatos procesados:', formattedCandidates.length);
+      setCandidates(formattedCandidates);
     } catch (error) {
       console.error('Error loading candidates:', error);
     }
