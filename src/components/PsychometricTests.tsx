@@ -1,112 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Brain,
-  FileText,
-  Users,
-  CheckCircle,
-  Clock,
-  ArrowRight,
+  Send,
   Download,
   Eye,
-  Filter,
-  Search,
-  BarChart3,
-  Sparkles,
-  Activity,
-  TrendingUp,
-  Award
+  Copy,
+  AlertCircle,
+  Briefcase,
+  Search
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import TermanMerrillTest from './TermanMerrillTest';
 import TermanMerrillResults from './TermanMerrillResults';
-import { TermanMerrillProvider } from '../contexts/TermanMerrillContext';
-
-interface TestType {
-  id: string;
-  name: string;
-  description: string;
-  duration: string;
-  icon: React.ComponentType<{ className?: string }>;
-  available: boolean;
-  color: string;
-}
 
 interface Candidate {
   id: string;
   name: string;
   email: string;
-  job_id: string;
+  phone?: string;
+  position: string;
   job_title?: string;
+  job_id: string;
+  cv_status: 'approved' | 'reviewing' | 'rejected';
+  cv_review_date?: string;
+  years_experience?: number;
   created_at: string;
+  terman_status: 'not-started' | 'pending' | 'in-progress' | 'completed' | 'expired';
+  invitation_sent: boolean;
+  test_id?: string;
+  test_token?: string;
 }
 
-interface TestResult {
+// Lightweight shape for results fetched from terman_results table
+interface TermanResult {
   id: number;
-  candidate_id: string;
-  test_type: string;
-  completed_at: string;
-  score?: number;
-  iq?: number;
-  candidate?: Candidate;
+  candidateId: string;
+  totalScore: number;
+  mentalAge: number;
+  iq: number;
+  iqClassification: string;
+  seriesScores: any;
+  completedAt: string;
+  interpretation: {
+    strengths: string[];
+    weaknesses: string[];
+    generalAssessment: string;
+  };
 }
 
 const PsychometricTests: React.FC = () => {
   const { user } = useAuth();
-  const [selectedTest, setSelectedTest] = useState<string | null>(null);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const [selectedResult, setSelectedResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showResultsDashboard, setShowResultsDashboard] = useState(false);
+  const [testResults, setTestResults] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterByJob, setFilterByJob] = useState<string | null>(null);
+  const [filter, setFilter] = useState('all');
 
-  // Definir tipos de test disponibles
-  const testTypes: TestType[] = [
-    {
-      id: 'terman-merrill',
-      name: 'Test Terman-Merrill',
-      description: 'Evaluación completa de inteligencia con 10 series de preguntas',
-      duration: '40 minutos',
-      icon: Brain,
-      available: true,
-      color: 'from-purple-500 to-pink-500'
-    },
-    {
-      id: 'cleaver',
-      name: 'Test Cleaver',
-      description: 'Análisis de comportamiento y estilo de trabajo',
-      duration: '20 minutos',
-      icon: Activity,
-      available: true,
-      color: 'from-blue-500 to-cyan-500'
-    },
-    {
-      id: 'moss',
-      name: 'Test Moss',
-      description: 'Evaluación de adaptabilidad y características personales',
-      duration: '15 minutos',
-      icon: Sparkles,
-      available: true,
-      color: 'from-green-500 to-emerald-500'
-    }
-  ];
-
-  // Cargar candidatos y resultados
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       loadCandidates();
-      loadTestResults();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const loadCandidates = async () => {
+    if (!user?.id) return;
+
     try {
-      console.log('🔍 TermanTest - Cargando candidatos para recruiter:', user?.id);
+      setLoading(true);
       
-      // Cargar candidatos con análisis aprobados (igual que CleaverContext)
+      // Cargar candidatos con análisis aprobados (igual que CleaverContext y MossContext)
       const { data: candidatesData, error: candidatesError } = await supabase
         .from('candidates')
         .select(`
@@ -114,6 +78,7 @@ const PsychometricTests: React.FC = () => {
           name,
           email,
           phone,
+          years_experience,
           created_at,
           candidate_analyses!inner (
             id,
@@ -128,296 +93,578 @@ const PsychometricTests: React.FC = () => {
             )
           )
         `)
-        .eq('candidate_analyses.jobs.recruiter_id', user?.id)
-        .in('candidate_analyses.recommendation', ['yes', 'maybe']); // Solo candidatos aprobados y viables
+        .eq('candidate_analyses.jobs.recruiter_id', user.id)
+        .in('candidate_analyses.recommendation', ['yes', 'maybe']);
 
       if (candidatesError) throw candidatesError;
 
-      console.log('🔍 TermanTest - Candidatos obtenidos de BD:', candidatesData?.length || 0);
+      // Obtener tests existentes
+      const candidateIds = candidatesData?.map(c => c.id) || [];
+      const { data: testsData, error: testsError } = await supabase
+        .from('terman_tests')
+        .select('*')
+        .in('candidate_id', candidateIds)
+        .eq('recruiter_id', user.id);
 
-      const formattedCandidates = candidatesData?.map(candidate => {
+      if (testsError) throw testsError;
+
+      // Combinar datos
+      const candidatesWithTests = candidatesData?.map(candidate => {
         const analysis = candidate.candidate_analyses?.[0];
-        
+        const test = testsData?.find(t => t.candidate_id === candidate.id);
+
         return {
           id: candidate.id,
           name: candidate.name,
           email: candidate.email,
-          job_id: analysis?.job_id || '',
-          job_title: analysis?.jobs?.[0]?.title || 'Sin especificar',
-          created_at: candidate.created_at
+          phone: candidate.phone,
+          position: analysis?.jobs?.[0]?.title || 'Sin especificar',
+          job_title: analysis?.jobs?.[0]?.title,
+          job_id: analysis?.job_id,
+          cv_status: analysis?.recommendation === 'yes' ? 'approved' as const : 'reviewing' as const,
+          cv_review_date: analysis?.processed_at,
+          years_experience: candidate.years_experience,
+          created_at: candidate.created_at,
+          terman_status: test?.status || 'not-started',
+          invitation_sent: !!test?.invitation_sent_at,
+          test_id: test?.id,
+          test_token: test?.test_token
         };
       }) || [];
 
-      console.log('🔍 TermanTest - Candidatos procesados:', formattedCandidates.length);
-      setCandidates(formattedCandidates);
+      setCandidates(candidatesWithTests);
     } catch (error) {
       console.error('Error loading candidates:', error);
-    }
-  };
-
-  const loadTestResults = async () => {
-    try {
-      setLoading(true);
-      
-      // Cargar resultados de Terman-Merrill
-      const { data: termanData, error: termanError } = await supabase
-        .from('terman_results')
-        .select('*')
-        .eq('recruiter_id', user?.id)
-        .order('completed_at', { ascending: false });
-
-      if (termanError) throw termanError;
-
-      // Cargar información de candidatos por separado
-      const candidateIds = termanData?.map(t => t.candidate_id) || [];
-      const { data: candidatesData, error: candidatesError } = await supabase
-        .from('candidates')
-        .select(`
-          id,
-          name,
-          email,
-          job_id,
-          created_at,
-          jobs (
-            id,
-            title
-          )
-        `)
-        .in('id', candidateIds);
-
-      if (candidatesError) throw candidatesError;
-
-      const results: TestResult[] = [
-        ...(termanData?.map(t => {
-          const candidate = candidatesData?.find(c => c.id === t.candidate_id);
-          return {
-            id: t.id,
-            candidate_id: t.candidate_id,
-            test_type: 'terman-merrill',
-            completed_at: t.completed_at,
-            iq: t.iq,
-            score: t.total_score,
-                          candidate: candidate ? {
-                id: candidate.id,
-                name: candidate.name,
-                email: candidate.email,
-                job_id: candidate.job_id,
-                created_at: candidate.created_at,
-                job_title: (candidate.jobs as any)?.[0]?.title || undefined
-              } : undefined
-          };
-        }) || [])
-      ];
-
-      setTestResults(results);
-    } catch (error) {
-      console.error('Error loading test results:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtrar candidatos
-  const filteredCandidates = candidates.filter(candidate => {
-    const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         candidate.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesJob = !filterByJob || candidate.job_id === filterByJob;
-    
-    return matchesSearch && matchesJob;
-  });
+  const createTermanTest = async (candidateId: string, jobId: string) => {
+    if (!user?.id) throw new Error('Usuario no autenticado');
 
-  // Manejar inicio de test
-  const handleStartTest = (testId: string, candidate: Candidate) => {
-    setSelectedTest(testId);
-    setSelectedCandidate(candidate);
+    try {
+      // Generar token único
+      const token = btoa(`terman_${candidateId}_${Date.now()}_${Math.random()}`);
+
+      const { data: testData, error: testError } = await supabase
+        .from('terman_tests')
+        .insert({
+          candidate_id: candidateId,
+          job_id: jobId,
+          recruiter_id: user.id,
+          test_token: token,
+          status: 'pending',
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 días
+          invitation_email_sent: false
+        })
+        .select()
+        .single();
+
+      if (testError) throw testError;
+
+      // Recargar candidatos
+      await loadCandidates();
+
+      return testData;
+    } catch (error) {
+      throw error;
+    }
   };
 
-  // Manejar finalización de test
-  const handleTestComplete = async (result: any) => {
-    setSelectedTest(null);
-    setSelectedCandidate(null);
-    await loadTestResults();
-    
-    // Mostrar resultados
-    setSelectedResult(result);
-    setShowResults(true);
-  };
-
-  // Ver resultados existentes
-  const handleViewResults = async (result: TestResult) => {
-    if (result.test_type === 'terman-merrill') {
-      try {
-        const { data, error } = await supabase
-          .from('terman_results')
-          .select('*')
-          .eq('id', result.id)
-          .single();
-
-        if (error) throw error;
-
-        // Convertir formato de base de datos a formato del componente
-        const formattedResult = {
-          ...data,
-          candidateId: data.candidate_id,
-          recruiterId: data.recruiter_id,
-          totalScore: data.total_score,
-          mentalAge: data.mental_age,
-          iqClassification: data.iq_classification,
-          seriesScores: data.series_scores,
-          completedAt: new Date(data.completed_at),
-          candidate: result.candidate
-        };
-
-        setSelectedResult(formattedResult);
-        setShowResults(true);
-      } catch (error) {
-        console.error('Error loading result details:', error);
+  const sendTermanInvitation = async (candidateId: string) => {
+    try {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate?.job_id) {
+        alert('Error: No se puede enviar invitación, falta información del trabajo');
+        return;
       }
+
+      // Crear el test
+      const createdTest = await createTermanTest(candidateId, candidate.job_id);
+      
+      // Actualizar candidato con información del test
+      const candidateWithTest = {
+        ...candidate,
+        terman_status: 'pending' as const,
+        invitation_sent: true,
+        test_id: createdTest.id,
+        test_token: createdTest.test_token
+      };
+      
+      setSelectedCandidate(candidateWithTest);
+      setShowLinkModal(true);
+      
+    } catch (error) {
+      alert(`Error enviando invitación: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
-  // Renderizar test activo
-  if (selectedTest && selectedCandidate) {
-    if (selectedTest === 'terman-merrill') {
-      return (
-        <TermanMerrillProvider>
-          <TermanMerrillTest
-            candidateId={selectedCandidate.id}
-            onComplete={handleTestComplete}
-            onCancel={() => {
-              setSelectedTest(null);
-              setSelectedCandidate(null);
-            }}
-          />
-        </TermanMerrillProvider>
-      );
+  const generateTermanLink = (candidateId: string) => {
+    // Primero buscar en selectedCandidate si coincide el ID
+    if (selectedCandidate?.id === candidateId && selectedCandidate?.test_token) {
+      return `${window.location.origin}/terman-test/${selectedCandidate.test_token}`;
     }
     
-    // Aquí se agregarían otros tests (Cleaver, Moss, etc.)
-    return <div>Test no implementado</div>;
-  }
+    // Luego buscar en la lista de candidatos
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (candidate?.test_token) {
+      return `${window.location.origin}/terman-test/${candidate.test_token}`;
+    }
+    
+    return '';
+  };
 
-  // Renderizar resultados
-  if (showResults && selectedResult) {
+  const viewTermanResults = async (candidate: Candidate) => {
+    try {
+      // Consultar la tabla terman_results buscando el resultado más reciente del candidato para la vacante
+      const { data, error } = await supabase
+        .from('terman_results')
+        .select('*')
+        .eq('candidate_id', candidate.id)
+        .order('completed_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        alert('No se encontraron resultados para este candidato');
+        return;
+      }
+
+      const dbResult = data[0];
+
+      const adaptedResults = {
+        id: dbResult.id,
+        candidateId: dbResult.candidate_id,
+        totalScore: dbResult.total_score,
+        mentalAge: dbResult.mental_age,
+        iq: dbResult.iq,
+        iqClassification: dbResult.iq_classification,
+        seriesScores: dbResult.series_scores ?? [],
+        completedAt: dbResult.completed_at,
+        interpretation: dbResult.interpretation ?? {
+          strengths: [],
+          weaknesses: [],
+          generalAssessment: ''
+        }
+      } as TermanResult;
+
+      setTestResults(adaptedResults);
+      setShowResultsDashboard(true);
+    } catch (error) {
+      alert(`Error cargando resultados: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  };
+  /* BEGIN DUPLICATED LEGACY BLOCK (commented out)
+    try {
+      if (!candidate.test_id) {
+        alert('No hay test disponible para ver resultados');
+        return;
+      }
+
+      // Obtener resultados del test de Terman-Merrill desde la tabla terman_results
+      const { data: results, error } = await supabase
+        .from('terman_tests')
+        .select(`
+          *,
+          candidate:candidates(*),
+          job:jobs(*)
+        `)
+        .eq('candidate_id', candidate.id).eq('job_id', candidate.job_id || null).order('completed_at', { ascending: false }).limit(1)
+        .single();
+
+      if (error) throw error;
+
+      if (!results || results.length === 0) {
+        alert('No se encontraron resultados para este test');
+        return;
+      }
+
+      // Adaptar formato para el dashboard
+      const dbResult = Array.isArray(results) ? results[0] : results;
+
+      // Adaptar formato para el dashboard
+      const adaptedResults = {
+        id: dbResult.id,
+        candidateId: dbResult.candidate_id,
+        totalScore: dbResult.total_score,
+        mentalAge: dbResult.mental_age,
+        iq: dbResult.iq,
+        iqClassification: dbResult.iq_classification,
+        seriesScores: dbResult.series_scores || [],
+        completedAt: dbResult.completed_at,
+        interpretation: dbResult.interpretation || { strengths: [], weaknesses: [], generalAssessment: '' }
+      };
+
+
+          name: results.candidate?.name || candidate.name,
+          email: results.candidate?.email || candidate.email
+        },
+        job: {
+          title: results.job?.title || candidate.position || 'No especificado',
+          company: results.job?.company
+        },
+        status: results.status || 'completed',
+        completed_at: results.completed_at,
+        time_spent_minutes: results.time_spent_minutes,
+        ci: results.ci,
+        mental_age: results.mental_age,
+        total_score: results.total_score,
+        serie_scores: {
+          serie_i: results.serie_i_score,
+          serie_ii: results.serie_ii_score,
+          serie_iii: results.serie_iii_score,
+          serie_iv: results.serie_iv_score,
+          serie_v: results.serie_v_score,
+          serie_vi: results.serie_vi_score,
+          serie_vii: results.serie_vii_score,
+          serie_viii: results.serie_viii_score,
+          serie_ix: results.serie_ix_score,
+          serie_x: results.serie_x_score
+        },
+        // removed legacy fields: results.// removed legacy fields,
+        strengths: results.strengths,
+
+      };
+
+      setTestResults(adaptedResults);
+      setShowResultsDashboard(true);
+    } catch (error) {
+      alert(`Error cargando resultados: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  };
+  */
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      'pending': { color: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30', text: 'Pendiente' },
+      'completed': { color: 'bg-green-500/20 text-green-300 border border-green-500/30', text: 'Completado' },
+      'in-progress': { color: 'bg-blue-500/20 text-blue-300 border border-blue-500/30', text: 'En progreso' },
+      'not-started': { color: 'bg-gray-500/20 text-gray-300 border border-gray-500/30', text: 'No iniciado' },
+      'approved': { color: 'bg-green-500/20 text-green-300 border border-green-500/30', text: 'Aprobado' },
+      'reviewing': { color: 'bg-blue-500/20 text-blue-300 border border-blue-500/30', text: 'En revisión' },
+      'rejected': { color: 'bg-red-500/20 text-red-300 border border-red-500/30', text: 'Rechazado' }
+    } as const;
+    
+    const badge = badges[status as keyof typeof badges] || badges['not-started'];
     return (
-      <TermanMerrillResults
-        result={selectedResult}
-        candidateName={selectedResult.candidate?.name || 'Candidato'}
-        onClose={() => {
-          setShowResults(false);
-          setSelectedResult(null);
-        }}
-      />
+      <span className={`px-3 py-1 text-xs font-medium rounded-full ${badge.color}`}>
+        {badge.text}
+      </span>
+    );
+  };
+
+  const filteredCandidates = () => {
+    return candidates.filter(candidate => {
+      // Filtro por búsqueda
+      if (searchTerm && !candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
+          !candidate.email.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Filtros por estado
+      if (filter === 'all') return true;
+      if (filter === 'cv-approved') return candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing';
+      if (filter === 'test-pending') return candidate.terman_status === 'pending';
+      if (filter === 'test-completed') return candidate.terman_status === 'completed';
+      
+      return true;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+      </div>
     );
   }
 
-  // Vista principal simplificada para la pestaña de Tests
   return (
     <div className="space-y-6">
-      {/* Stats rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-          <div className="flex items-center space-x-3">
-            <Users className="h-8 w-8 text-blue-400" />
-            <div>
-              <div className="text-2xl font-bold text-white">{candidates.length}</div>
-              <div className="text-white/60 text-sm">Candidatos Disponibles</div>
+
+      {/* Filtros y búsqueda */}
+      <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          {/* Búsqueda */}
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Buscar por nombre o email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-5 w-5 text-white/50" />
             </div>
           </div>
-        </div>
-        
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-          <div className="flex items-center space-x-3">
-            <Brain className="h-8 w-8 text-green-400" />
-            <div>
-              <div className="text-2xl font-bold text-white">{testResults.length}</div>
-              <div className="text-white/60 text-sm">Tests Completados</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-          <div className="flex items-center space-x-3">
-            <BarChart3 className="h-8 w-8 text-purple-400" />
-            <div>
-              <div className="text-2xl font-bold text-white">
-                {testResults.length > 0 ? Math.round(testResults.reduce((acc, r) => acc + (r.iq || 0), 0) / testResults.length) : 0}
-              </div>
-              <div className="text-white/60 text-sm">CI Promedio</div>
-            </div>
+
+          {/* Filtros */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                filter === 'all' 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                  : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setFilter('cv-approved')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                filter === 'cv-approved' 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                  : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+              }`}
+            >
+              CV Viable
+            </button>
+            <button
+              onClick={() => setFilter('test-pending')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                filter === 'test-pending' 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                  : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+              }`}
+            >
+              Test Pendiente
+            </button>
+            <button
+              onClick={() => setFilter('test-completed')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                filter === 'test-completed' 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                  : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+              }`}
+            >
+              Test Completado
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Lista de candidatos */}
-      <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
-        <div className="p-6 border-b border-white/20">
-          <h2 className="text-xl font-semibold text-white">Test Terman-Merrill - Candidatos</h2>
-        </div>
-        
-        <div className="divide-y divide-white/10">
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
-              <p className="text-white/60">Cargando candidatos...</p>
-            </div>
-          ) : filteredCandidates.length === 0 ? (
-            <div className="p-12 text-center">
-              <Users className="h-12 w-12 text-white/40 mx-auto mb-4" />
-              <p className="text-white/60">No se encontraron candidatos</p>
-            </div>
-          ) : (
-            filteredCandidates.map((candidate) => {
-              const candidateResults = testResults.filter(r => r.candidate_id === candidate.id);
-              
-              return (
-                <div key={candidate.id} className="p-6 hover:bg-white/5 transition-all">
-                  <div className="flex items-center justify-between">
+      {/* Tabla de candidatos */}
+      <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-white/5">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Candidato
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Puesto
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Estado CV
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Estado Test
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {filteredCandidates().map((candidate) => (
+                <tr key={candidate.id} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <h3 className="text-lg font-medium text-white">{candidate.name}</h3>
-                      <p className="text-white/60 text-sm">{candidate.email}</p>
-                      {candidate.job_title && (
-                        <p className="text-white/50 text-sm mt-1">
-                          Puesto: {candidate.job_title}
-                        </p>
-                      )}
+                      <div className="text-sm font-medium text-white">{candidate.name}</div>
+                      <div className="text-sm text-white/60">{candidate.email}</div>
                     </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      {/* Tests completados */}
-                      {candidateResults.length > 0 && (
-                        <div className="flex space-x-2">
-                          {candidateResults.map((result) => (
-                            <button
-                              key={result.id}
-                              onClick={() => handleViewResults(result)}
-                              className="flex items-center space-x-2 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-all"
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="text-sm">CI: {result.iq}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Botón para aplicar test */}
-                      {candidateResults.length === 0 && (
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-white">{candidate.position}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(candidate.cv_status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(candidate.terman_status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-3">
+                      {(candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing') && !candidate.test_token && (
                         <button
-                          onClick={() => handleStartTest('terman-merrill', candidate)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg transition-all"
+                          onClick={() => sendTermanInvitation(candidate.id)}
+                          className="text-blue-400 hover:text-blue-300 flex items-center space-x-1 transition-colors"
                         >
-                          <Brain className="h-4 w-4" />
-                          <span>Aplicar Test</span>
+                          <Send className="h-4 w-4" />
+                          <span>Crear Test</span>
                         </button>
                       )}
+
+                      {(candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing') && candidate.test_token && candidate.terman_status !== 'completed' && (
+                        <button
+                          onClick={() => {
+                            setSelectedCandidate(candidate);
+                            setShowLinkModal(true);
+                          }}
+                          className="text-purple-400 hover:text-purple-300 flex items-center space-x-1 transition-colors"
+                        >
+                          <Copy className="h-4 w-4" />
+                          <span>Copiar Enlace</span>
+                        </button>
+                      )}
+                      
+                      {candidate.terman_status === 'completed' && (
+                        <>
+                          <button
+                            onClick={() => viewTermanResults(candidate)}
+                            className="text-green-400 hover:text-green-300 flex items-center space-x-1 transition-colors"
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span>Ver Resultados</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => {/* TODO: Implementar exportar */}}
+                            className="text-white/70 hover:text-white flex items-center space-x-1 transition-colors"
+                          >
+                            <Download className="h-4 w-4" />
+                            <span>Exportar</span>
+                          </button>
+                        </>
+                      )}
+                      
+                      {candidate.test_token && candidate.terman_status === 'pending' && (
+                        <span className="text-yellow-400 flex items-center space-x-1">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Esperando respuesta</span>
+                        </span>
+                      )}
                     </div>
-                  </div>
-                </div>
-              );
-            })
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {/* Mensaje cuando no hay candidatos */}
+          {filteredCandidates().length === 0 && (
+            <div className="text-center py-12 px-6">
+              <div className="text-white/50 mb-4">
+                <Briefcase className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No hay candidatos disponibles</h3>
+                <p className="text-sm">
+                  No tienes candidatos viables para aplicar el Test Terman-Merrill.
+                </p>
+                <p className="text-sm mt-2">
+                  Los candidatos aparecerán aquí una vez que tengas CVs aprobados o viables en la sección de Análisis.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Modal de enlace generado */}
+      {selectedCandidate && showLinkModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-6 w-full max-w-lg">
+            <h3 className="text-lg font-bold text-white mb-4">
+              🧮 Enlace de Test Terman-Merrill
+            </h3>
+            <p className="text-white/70 text-sm mb-4">
+              Comparte este enlace con <strong className="text-white">{selectedCandidate?.name}</strong> para que realice el test de inteligencia Terman-Merrill:
+            </p>
+          
+          {/* Información del candidato */}
+          <div className="bg-black/20 p-3 rounded-lg mb-4 border border-white/10">
+            <div className="text-sm text-white/80 mb-2">
+              <strong>Candidato:</strong> {selectedCandidate.name}
+            </div>
+            <div className="text-sm text-white/80 mb-2">
+              <strong>Email:</strong> {selectedCandidate.email}
+            </div>
+            <div className="text-sm text-white/80">
+              <strong>Puesto:</strong> {selectedCandidate.position}
+            </div>
+          </div>
+
+          {/* Enlace */}
+          <div className="bg-black/30 p-4 rounded-lg mb-4 border border-white/10">
+            <div className="text-xs text-white/60 mb-2">Enlace del test:</div>
+            <div className="flex items-center space-x-2">
+              <code className="text-sm text-green-300 break-all font-mono flex-1 p-2 bg-black/30 rounded border">
+                {selectedCandidate ? generateTermanLink(selectedCandidate.id) : 'Generando enlace...'}
+              </code>
+              <button
+                onClick={() => {
+                  if (selectedCandidate) {
+                    const link = generateTermanLink(selectedCandidate.id);
+                    if (link) {
+                      navigator.clipboard.writeText(link);
+                      alert('📋 Enlace copiado!');
+                    }
+                  }
+                }}
+                className="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs transition-colors"
+              >
+                📋
+              </button>
+            </div>
+          </div>
+
+          {/* Instrucciones */}
+          <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3 mb-4">
+            <div className="text-xs text-blue-300 mb-1">📋 Instrucciones para el candidato:</div>
+            <ul className="text-xs text-blue-200 space-y-1">
+              <li>• El test tiene una duración aproximada de 40 minutos</li>
+              <li>• Consta de 10 series con diferentes tipos de preguntas</li>
+              <li>• Cada serie tiene un tiempo límite específico</li>
+              <li>• Debe completarse en una sola sesión</li>
+              <li>• El enlace expira en 7 días</li>
+              <li>• Responde con la mayor precisión posible</li>
+            </ul>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                if (selectedCandidate) {
+                  const link = generateTermanLink(selectedCandidate.id);
+                  if (link) {
+                    navigator.clipboard.writeText(link);
+                    alert('✅ Enlace copiado al portapapeles');
+                  } else {
+                    alert('❌ No hay enlace disponible');
+                  }
+                }
+              }}
+              className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all font-medium"
+            >
+              📋 Copiar Enlace
+            </button>
+            <button
+              onClick={() => {
+                setSelectedCandidate(null);
+                setShowLinkModal(false);
+              }}
+              className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all border border-white/20"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Dashboard de resultados */}
+    {showResultsDashboard && testResults && (
+      <TermanMerrillResults
+        result={testResults}
+        onClose={() => {
+          setShowResultsDashboard(false);
+          setTestResults(null);
+        }}
+      />
+    )}
     </div>
   );
 };

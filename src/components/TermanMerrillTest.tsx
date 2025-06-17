@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Brain,
   Timer,
@@ -7,21 +7,27 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
-  Award
-} from 'lucide-react';
-import { useTermanMerrill } from '../contexts/TermanMerrillContext';
-import { TERMAN_QUESTIONS, SERIES_INSTRUCTIONS, SERIES_EXAMPLES } from '../data/termanQuestions';
+  Award,
+} from "lucide-react";
+import { useTermanMerrill } from "../contexts/TermanMerrillContext";
+import {
+  TERMAN_QUESTIONS,
+  SERIES_INSTRUCTIONS,
+  SERIES_EXAMPLES,
+} from "../data/terman-questions";
 
 interface TermanMerrillTestProps {
   candidateId: string;
+  testToken: string;
   onComplete: (result: any) => void;
   onCancel: () => void;
 }
 
-const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({ 
-  candidateId, 
-  onComplete, 
-  onCancel 
+const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
+  candidateId,
+  testToken,
+  onComplete,
+  onCancel,
 }) => {
   const {
     currentSerie,
@@ -35,23 +41,30 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
     skipQuestion,
     finishSerie,
     finishTest,
+    getSavedAnswer,
+    setTestToken,
+    loadSavedResponses,
     loading,
-    error
+    error,
   } = useTermanMerrill();
 
   const [isStarted, setIsStarted] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<
+    string | string[] | null
+  >(null);
   const [showInstructions, setShowInstructions] = useState(true);
 
   // Obtener preguntas de la serie actual
-  const currentSerieQuestions = TERMAN_QUESTIONS.filter(q => q.serie === currentSerie);
+  const currentSerieQuestions = TERMAN_QUESTIONS.filter(
+    (q) => q.serie === currentSerie,
+  );
   const currentQuestion = currentSerieQuestions[currentQuestionIndex];
 
   // Formatear tiempo
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Efecto para mostrar instrucciones al cambiar de serie
@@ -69,44 +82,80 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
     }
   }, [timeRemaining, isTestActive]);
 
+  // Efecto para cargar respuesta guardada cuando cambia la pregunta
+  useEffect(() => {
+    if (currentQuestion && !showInstructions) {
+      const savedAnswer = getSavedAnswer(currentSerie, currentQuestion.number);
+      setSelectedAnswer(savedAnswer || null);
+    } else if (showInstructions) {
+      // Limpiar respuesta seleccionada cuando se muestran instrucciones
+      setSelectedAnswer(null);
+    }
+  }, [currentQuestion, showInstructions, currentSerie, getSavedAnswer]);
+
   const handleStartTest = async () => {
     try {
+      // Configurar el token del test
+      setTestToken(testToken);
+
+      // Cargar respuestas guardadas previamente
+      await loadSavedResponses(testToken);
+
+      // Iniciar el test
       await startTest(candidateId);
       setIsStarted(true);
     } catch (err) {
-      console.error('Error starting test:', err);
+      console.error("Error starting test:", err);
     }
   };
 
   const handleAnswerSelect = (value: string) => {
-    if (currentQuestion?.type === 'multiple') {
-      const currentAnswers = Array.isArray(selectedAnswer) ? selectedAnswer : [];
+    let newAnswer: string | string[];
+
+    if (currentQuestion?.type === "multiple") {
+      const currentAnswers = Array.isArray(selectedAnswer)
+        ? selectedAnswer
+        : [];
       if (currentAnswers.includes(value)) {
-        setSelectedAnswer(currentAnswers.filter(a => a !== value));
+        newAnswer = currentAnswers.filter((a) => a !== value);
       } else if (currentAnswers.length < 2) {
-        setSelectedAnswer([...currentAnswers, value]);
+        newAnswer = [...currentAnswers, value];
+      } else {
+        return; // No permitir más de 2 selecciones
       }
     } else {
-      setSelectedAnswer(value);
+      newAnswer = value;
+    }
+
+    setSelectedAnswer(newAnswer);
+
+    // Guardar la respuesta inmediatamente
+    if (
+      currentQuestion &&
+      (newAnswer.length > 0 || typeof newAnswer === "string")
+    ) {
+      submitAnswer(newAnswer);
     }
   };
 
   const handleSubmit = () => {
     if (selectedAnswer) {
       submitAnswer(selectedAnswer);
-      setSelectedAnswer(null);
       nextQuestion();
     }
   };
 
   const handleSkip = () => {
-    skipQuestion();
-    setSelectedAnswer(null);
+    if (currentQuestionIndex < currentSerieQuestions.length - 1) {
+      skipQuestion();
+    } else {
+      // Si es la última pregunta, finalizar la serie
+      handleFinishSerie();
+    }
   };
 
   const handleFinishSerie = () => {
     finishSerie();
-    setSelectedAnswer(null);
   };
 
   const handleFinishTest = async () => {
@@ -114,7 +163,7 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
       const result = await finishTest();
       onComplete(result);
     } catch (err) {
-      console.error('Error finishing test:', err);
+      console.error("Error finishing test:", err);
     }
   };
 
@@ -127,11 +176,11 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
           Serie {currentSerie} - Instrucciones
         </h2>
       </div>
-      
+
       <p className="text-white/80 mb-6">
         {SERIES_INSTRUCTIONS[currentSerie as keyof typeof SERIES_INSTRUCTIONS]}
       </p>
-      
+
       {/* Mostrar ejemplos si existen */}
       {SERIES_EXAMPLES[currentSerie as keyof typeof SERIES_EXAMPLES] && (
         <div className="bg-white/5 rounded-lg p-6 mb-6">
@@ -139,12 +188,12 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
           <RenderExample serie={currentSerie} />
         </div>
       )}
-      
+
       <div className="flex justify-between items-center">
         <div className="text-white/60">
           Tiempo límite: {formatTime(timeRemaining)}
         </div>
-        
+
         <button
           onClick={() => setShowInstructions(false)}
           className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-lg transition-all flex items-center space-x-2"
@@ -167,35 +216,39 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
           <div className="flex items-center space-x-3">
             <Brain className="h-6 w-6 text-purple-400" />
             <span className="text-white/80">
-              Serie {currentSerie} - Pregunta {currentQuestionIndex + 1} de {currentSerieQuestions.length}
+              Serie {currentSerie} de 10 - Pregunta {currentQuestionIndex + 1}{" "}
+              de {currentSerieQuestions.length}
             </span>
           </div>
-          
+
           <div className="flex items-center space-x-2 text-white">
             <Timer className="h-5 w-5" />
-            <span className={timeRemaining < 30 ? 'text-red-400' : ''}>
+            <span className={timeRemaining < 30 ? "text-red-400" : ""}>
               {formatTime(timeRemaining)}
             </span>
           </div>
         </div>
-        
+
         {/* Pregunta */}
         <div className="mb-8">
           <h3 className="text-xl font-medium text-white mb-6">
             {currentQuestion.number}. {currentQuestion.question}
           </h3>
-          
+
           {/* Opciones según tipo de pregunta */}
-          {currentQuestion.type === 'single' && currentQuestion.options && (
+          {currentQuestion.type === "single" && currentQuestion.options && (
             <div className="space-y-3">
               {currentQuestion.options.map((option, index) => (
-                <label key={index} className="flex items-center space-x-3 cursor-pointer group">
+                <label
+                  key={index}
+                  className="flex items-center space-x-3 cursor-pointer group"
+                >
                   <input
                     type="radio"
                     name="answer"
                     value={String.fromCharCode(65 + index)}
                     checked={selectedAnswer === String.fromCharCode(65 + index)}
-                    onChange={(e) => setSelectedAnswer(e.target.value)}
+                    onChange={(e) => handleAnswerSelect(e.target.value)}
                     className="w-5 h-5 text-purple-500 focus:ring-purple-500"
                   />
                   <span className="text-white/80 group-hover:text-white transition-colors">
@@ -205,19 +258,33 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
               ))}
             </div>
           )}
-          
-          {currentQuestion.type === 'multiple' && currentQuestion.options && (
+
+          {currentQuestion.type === "multiple" && currentQuestion.options && (
             <div className="space-y-3">
-              <p className="text-yellow-400 text-sm mb-4">Seleccione DOS opciones</p>
+              <p className="text-yellow-400 text-sm mb-4">
+                Seleccione DOS opciones
+              </p>
               {currentQuestion.options.map((option, index) => (
-                <label key={index} className="flex items-center space-x-3 cursor-pointer group">
+                <label
+                  key={index}
+                  className="flex items-center space-x-3 cursor-pointer group"
+                >
                   <input
                     type="checkbox"
                     value={String.fromCharCode(65 + index)}
-                    checked={(selectedAnswer as string[])?.includes(String.fromCharCode(65 + index))}
+                    checked={
+                      Array.isArray(selectedAnswer)
+                        ? selectedAnswer.includes(
+                            String.fromCharCode(65 + index),
+                          )
+                        : false
+                    }
                     onChange={(e) => handleAnswerSelect(e.target.value)}
-                    disabled={(selectedAnswer as string[])?.length >= 2 && 
-                      !(selectedAnswer as string[])?.includes(String.fromCharCode(65 + index))}
+                    disabled={
+                      Array.isArray(selectedAnswer) &&
+                      selectedAnswer.length >= 2 &&
+                      !selectedAnswer.includes(String.fromCharCode(65 + index))
+                    }
                     className="w-5 h-5 text-purple-500 focus:ring-purple-500"
                   />
                   <span className="text-white/80 group-hover:text-white transition-colors">
@@ -227,46 +294,114 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
               ))}
             </div>
           )}
-          
-          {currentQuestion.type === 'equal-opposite' && (
+
+          {currentQuestion.type === "equal-opposite" && (
             <div className="flex space-x-6">
               <label className="flex items-center space-x-3 cursor-pointer">
                 <input
                   type="radio"
                   name="answer"
                   value="I"
-                  checked={selectedAnswer === 'I'}
-                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  checked={selectedAnswer === "I"}
+                  onChange={(e) => handleAnswerSelect(e.target.value)}
                   className="w-5 h-5 text-purple-500 focus:ring-purple-500"
                 />
                 <span className="text-white/80">I - Igual</span>
               </label>
-              
+
               <label className="flex items-center space-x-3 cursor-pointer">
                 <input
                   type="radio"
                   name="answer"
                   value="O"
-                  checked={selectedAnswer === 'O'}
-                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  checked={selectedAnswer === "O"}
+                  onChange={(e) => handleAnswerSelect(e.target.value)}
                   className="w-5 h-5 text-purple-500 focus:ring-purple-500"
                 />
                 <span className="text-white/80">O - Opuesto</span>
               </label>
             </div>
           )}
-          
-          {currentQuestion.type === 'open' && (
+
+          {currentQuestion.type === "yes-no" && (
+            <div className="flex space-x-6">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="answer"
+                  value="SI"
+                  checked={selectedAnswer === "SI"}
+                  onChange={(e) => handleAnswerSelect(e.target.value)}
+                  className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                />
+                <span className="text-white/80">SÍ</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="answer"
+                  value="NO"
+                  checked={selectedAnswer === "NO"}
+                  onChange={(e) => handleAnswerSelect(e.target.value)}
+                  className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                />
+                <span className="text-white/80">NO</span>
+              </label>
+            </div>
+          )}
+
+          {currentQuestion.type === "true-false" && (
+            <div className="flex space-x-6">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="answer"
+                  value="V"
+                  checked={selectedAnswer === "V"}
+                  onChange={(e) => handleAnswerSelect(e.target.value)}
+                  className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                />
+                <span className="text-white/80">V - Verdadero</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="answer"
+                  value="F"
+                  checked={selectedAnswer === "F"}
+                  onChange={(e) => handleAnswerSelect(e.target.value)}
+                  className="w-5 h-5 text-purple-500 focus:ring-purple-500"
+                />
+                <span className="text-white/80">F - Falso</span>
+              </label>
+            </div>
+          )}
+
+          {currentQuestion.type === "open" && (
             <input
               type="text"
-              value={selectedAnswer as string || ''}
-              onChange={(e) => setSelectedAnswer(e.target.value)}
+              value={(selectedAnswer as string) || ""}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setSelectedAnswer(newValue);
+
+                // Auto-guardar después de un breve delay (debounce)
+                if (currentQuestion) {
+                  setTimeout(() => {
+                    if (newValue.trim()) {
+                      submitAnswer(newValue);
+                    }
+                  }, 1000);
+                }
+              }}
               placeholder="Escriba su respuesta"
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           )}
         </div>
-        
+
         {/* Botones de navegación */}
         <div className="flex justify-between items-center">
           <button
@@ -277,7 +412,7 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
             <ChevronLeft className="h-5 w-5" />
             <span>Anterior</span>
           </button>
-          
+
           <div className="flex space-x-3">
             <button
               onClick={handleSkip}
@@ -285,7 +420,7 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
             >
               Omitir
             </button>
-            
+
             {currentQuestionIndex === currentSerieQuestions.length - 1 ? (
               <button
                 onClick={handleFinishSerie}
@@ -297,7 +432,10 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!selectedAnswer || (Array.isArray(selectedAnswer) && selectedAnswer.length === 0)}
+                disabled={
+                  !selectedAnswer ||
+                  (Array.isArray(selectedAnswer) && selectedAnswer.length === 0)
+                }
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-2 rounded-lg transition-all flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>Siguiente</span>
@@ -320,18 +458,21 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Brain className="h-10 w-10 text-white" />
               </div>
-              
+
               <h1 className="text-3xl font-bold text-white mb-4">
                 Test de Inteligencia Terman-Merrill
               </h1>
-              
+
               <p className="text-white/80 mb-6">
-                Este test evalúa diferentes aspectos de la inteligencia a través de 10 series de preguntas.
-                El tiempo total aproximado es de 40 minutos.
+                Este test evalúa diferentes aspectos de la inteligencia a través
+                de 10 series de preguntas. El tiempo total aproximado es de 40
+                minutos.
               </p>
-              
+
               <div className="bg-white/5 rounded-lg p-6 mb-8">
-                <h3 className="text-lg font-semibold text-white mb-4">Instrucciones Generales:</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Instrucciones Generales:
+                </h3>
                 <ul className="text-left text-white/80 space-y-2">
                   <li>• Cada serie tiene un tiempo límite específico</li>
                   <li>• Lea cuidadosamente las instrucciones de cada serie</li>
@@ -340,7 +481,7 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
                   <li>• No podrá regresar a series anteriores</li>
                 </ul>
               </div>
-              
+
               <div className="flex justify-center space-x-4">
                 <button
                   onClick={onCancel}
@@ -348,13 +489,13 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
                 >
                   Cancelar
                 </button>
-                
+
                 <button
                   onClick={handleStartTest}
                   disabled={loading}
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-3 rounded-lg transition-all flex items-center space-x-2 disabled:opacity-50"
                 >
-                  <span>{loading ? 'Iniciando...' : 'Comenzar Test'}</span>
+                  <span>{loading ? "Iniciando..." : "Comenzar Test"}</span>
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
@@ -393,28 +534,31 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
             <span className="text-white/80">Serie {currentSerie} de X</span>
           </div>
           <div className="w-full bg-white/10 rounded-full h-3">
-            <div 
+            <div
               className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'].indexOf(currentSerie) + 1) * 10}%` }}
+              style={{
+                width: `${(["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"].indexOf(currentSerie) + 1) * 10}%`,
+              }}
             />
           </div>
         </div>
-        
+
         {/* Contenido principal */}
         {showInstructions ? renderInstructions() : renderQuestion()}
-        
+
         {/* Botón para finalizar test */}
-        {currentSerie === 'X' && currentQuestionIndex === currentSerieQuestions.length - 1 && (
-          <div className="mt-8 text-center">
-            <button
-              onClick={handleFinishTest}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-4 rounded-lg transition-all flex items-center space-x-3 mx-auto text-lg font-semibold"
-            >
-              <Award className="h-6 w-6" />
-              <span>Finalizar Test Completo</span>
-            </button>
-          </div>
-        )}
+        {currentSerie === "X" &&
+          currentQuestionIndex === currentSerieQuestions.length - 1 && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleFinishTest}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-4 rounded-lg transition-all flex items-center space-x-3 mx-auto text-lg font-semibold"
+              >
+                <Award className="h-6 w-6" />
+                <span>Finalizar Test Completo</span>
+              </button>
+            </div>
+          )}
       </div>
     </div>
   );
@@ -423,10 +567,10 @@ const TermanMerrillTest: React.FC<TermanMerrillTestProps> = ({
 // Componente auxiliar para renderizar ejemplos
 const RenderExample: React.FC<{ serie: string }> = ({ serie }) => {
   const example = SERIES_EXAMPLES[serie as keyof typeof SERIES_EXAMPLES];
-  
+
   if (!example) return null;
 
-  if (serie === 'I' || serie === 'II') {
+  if (serie === "I" || serie === "II") {
     return (
       <div>
         <p className="text-white mb-3">{(example as any).question}</p>
@@ -443,25 +587,193 @@ const RenderExample: React.FC<{ serie: string }> = ({ serie }) => {
       </div>
     );
   }
-  
-  if (serie === 'III') {
+
+  if (serie === "III") {
     return (
       <div className="space-y-3">
         <div>
           <p className="text-white">{(example as any).question1}</p>
-          <p className="text-green-400">Respuesta: {(example as any).answer1}</p>
+          <p className="text-green-400">
+            Respuesta: {(example as any).answer1}
+          </p>
         </div>
         <div>
           <p className="text-white">{(example as any).question2}</p>
-          <p className="text-green-400">Respuesta: {(example as any).answer2}</p>
+          <p className="text-green-400">
+            Respuesta: {(example as any).answer2}
+          </p>
         </div>
       </div>
     );
   }
-  
-  // Agregar más casos según sea necesario
-  
+
+  if (serie === "IV") {
+    return (
+      <div>
+        <p className="text-white mb-3">{(example as any).question}</p>
+        <div className="space-y-2">
+          {(example as any).options.map((opt: string, idx: number) => (
+            <div key={idx} className="text-white/70">
+              {String.fromCharCode(97 + idx)}) {opt}
+            </div>
+          ))}
+        </div>
+        <p className="text-green-400 mt-3">
+          Respuestas correctas: ({(example as any).answer.join(", ")})
+        </p>
+        <p className="text-yellow-400 text-sm mt-2">
+          Nota: Debe seleccionar DOS opciones
+        </p>
+      </div>
+    );
+  }
+
+  if (serie === "V") {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-white mb-2">Ejemplo 1:</p>
+          <p className="text-white/80">{(example as any).question1}</p>
+          <p className="text-green-400 mt-2">
+            Respuesta: {(example as any).answer1}
+          </p>
+        </div>
+        <div>
+          <p className="text-white mb-2">Ejemplo 2:</p>
+          <p className="text-white/80">{(example as any).question2}</p>
+          <p className="text-green-400 mt-2">
+            Respuesta: {(example as any).answer2}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (serie === "VI") {
+    return (
+      <div className="space-y-3">
+        <div>
+          <p className="text-white">{(example as any).question1}</p>
+          <p className="text-green-400">
+            Respuesta: {(example as any).answer1}
+          </p>
+        </div>
+        <div>
+          <p className="text-white">{(example as any).question2}</p>
+          <p className="text-green-400">
+            Respuesta: {(example as any).answer2}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (serie === "VII") {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-white mb-3">{(example as any).question1}</p>
+          <div className="space-y-2">
+            {(example as any).options1.map((opt: string, idx: number) => (
+              <div key={idx} className="text-white/70">
+                {String.fromCharCode(97 + idx)}) {opt}
+              </div>
+            ))}
+          </div>
+          <p className="text-green-400 mt-2">
+            Respuesta correcta: ({(example as any).answer1})
+          </p>
+        </div>
+        <div>
+          <p className="text-white mb-3">{(example as any).question2}</p>
+          <div className="space-y-2">
+            {(example as any).options2.map((opt: string, idx: number) => (
+              <div key={idx} className="text-white/70">
+                {String.fromCharCode(97 + idx)}) {opt}
+              </div>
+            ))}
+          </div>
+          <p className="text-green-400 mt-2">
+            Respuesta correcta: ({(example as any).answer2})
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (serie === "VIII") {
+    return (
+      <div className="space-y-3">
+        <div>
+          <p className="text-white">{(example as any).question1}</p>
+          <p className="text-green-400">
+            Respuesta: {(example as any).answer1} (La oración ordenada es: "Los
+            oídos son para oír")
+          </p>
+        </div>
+        <div>
+          <p className="text-white">{(example as any).question2}</p>
+          <p className="text-green-400">
+            Respuesta: {(example as any).answer2} (La oración ordenada es: "La
+            pólvora es buena para comer")
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (serie === "IX") {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-white mb-2">Ejemplo 1:</p>
+          <div className="flex space-x-4 text-white/80">
+            {(example as any).question1.map((word: string, idx: number) => (
+              <span key={idx}>{word}</span>
+            ))}
+          </div>
+          <p className="text-green-400 mt-2">
+            Respuesta: ({(example as any).answer1}) - lápiz (no es un arma)
+          </p>
+        </div>
+        <div>
+          <p className="text-white mb-2">Ejemplo 2:</p>
+          <div className="flex space-x-4 text-white/80">
+            {(example as any).question2.map((word: string, idx: number) => (
+              <span key={idx}>{word}</span>
+            ))}
+          </div>
+          <p className="text-green-400 mt-2">
+            Respuesta: ({(example as any).answer2}) - Sonora (es un estado, no
+            un país)
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (serie === "X") {
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-white mb-2">Ejemplo 1:</p>
+          <p className="text-white/80">{(example as any).question1}</p>
+          <p className="text-green-400 mt-2">
+            Respuesta: {(example as any).answer1}
+          </p>
+        </div>
+        <div>
+          <p className="text-white mb-2">Ejemplo 2:</p>
+          <p className="text-white/80">{(example as any).question2}</p>
+          <p className="text-green-400 mt-2">
+            Respuesta: {(example as any).answer2}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return null;
 };
 
-export default TermanMerrillTest; 
+export default TermanMerrillTest;

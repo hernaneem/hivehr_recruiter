@@ -73,8 +73,9 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
   };
 
   // Obtener color según clasificación CI
-  const getIQColor = (classification: string): string => {
-    if (classification.includes('SUPERIOR')) return 'text-green-400';
+  const getIQColor = (classification?: string): string => {
+    if (!classification) return 'text-white';
+  if (classification.includes('SUPERIOR')) return 'text-green-400';
     if (classification.includes('PROMEDIO')) return 'text-yellow-400';
     if (classification.includes('INFERIOR')) return 'text-orange-400';
     if (classification.includes('DEFICIENCIA')) return 'text-red-400';
@@ -96,7 +97,8 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div className="w-full max-h-full overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-xl py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 border border-white/20 mb-6">
@@ -159,12 +161,12 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
                 <Target className="h-6 w-6 text-white" />
               </div>
               <span className="text-4xl font-bold text-white">
-                {Math.floor(result.mentalAge / 12)}
+                {Number.isFinite(result.mentalAge) ? Math.floor(result.mentalAge / 12) : '--'}
               </span>
             </div>
             <h3 className="text-lg font-semibold text-white mb-1">Edad Mental</h3>
             <p className="text-sm text-white/70">
-              {Math.floor(result.mentalAge / 12)} años {result.mentalAge % 12} meses
+              {Number.isFinite(result.mentalAge) ? `${Number.isFinite(result.mentalAge) ? Math.floor(result.mentalAge / 12) : '--'} años ${result.mentalAge % 12} meses` : 'Sin datos'}
             </p>
           </div>
 
@@ -191,7 +193,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
           </h2>
           
           <div className="space-y-4">
-            {result.seriesScores.map((score) => (
+            {(result.seriesScores ?? []).map((score) => (
               <div key={score.serie} className="bg-white/5 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-lg font-medium text-white">
@@ -232,14 +234,14 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
         {/* Interpretación */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Fortalezas */}
-          {result.interpretation.strengths.length > 0 && (
+          {(result.interpretation?.strengths?.length ?? 0) > 0 && (
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
               <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
                 <TrendingUp className="h-6 w-6 text-green-400" />
                 <span>Fortalezas</span>
               </h3>
               <ul className="space-y-3">
-                {result.interpretation.strengths.map((strength, index) => (
+                {(result.interpretation?.strengths ?? []).map((strength, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0" />
                     <span className="text-white/80">{strength}</span>
@@ -250,14 +252,14 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
           )}
 
           {/* Áreas de Mejora */}
-          {result.interpretation.weaknesses.length > 0 && (
+          {(result.interpretation?.weaknesses?.length ?? 0) > 0 && (
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
               <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
                 <TrendingDown className="h-6 w-6 text-yellow-400" />
                 <span>Áreas de Mejora</span>
               </h3>
               <ul className="space-y-3">
-                {result.interpretation.weaknesses.map((weakness, index) => (
+                {(result.interpretation?.weaknesses ?? []).map((weakness, index) => (
                   <li key={index} className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 flex-shrink-0" />
                     <span className="text-white/80">{weakness}</span>
@@ -275,11 +277,12 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
             <span>Evaluación General</span>
           </h3>
           <p className="text-white/80 leading-relaxed">
-            {result.interpretation.generalAssessment}
+            {result.interpretation?.generalAssessment ?? ''}
           </p>
         </div>
       </div>
     </div>
+  </div>
   );
 };
 

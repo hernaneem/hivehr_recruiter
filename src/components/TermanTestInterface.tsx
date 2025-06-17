@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { TermanMerrillProvider } from '../contexts/TermanMerrillContext';
-import TermanMerrillTest from './TermanMerrillTest';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import { TermanMerrillProvider } from "../contexts/TermanMerrillContext";
+import TermanMerrillTest from "./TermanMerrillTest";
 
 interface TermanTest {
   id: number;
   candidate_id: string;
   job_id: string;
   test_token: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: "pending" | "in-progress" | "completed";
   expires_at: string;
   candidate?: {
     id: string;
@@ -31,21 +31,21 @@ const TermanTestInterfaceInner: React.FC<{ test: TermanTest }> = ({ test }) => {
     try {
       // Actualizar el estado del test a completado
       const { error: updateError } = await supabase
-        .from('terman_tests')
-        .update({ 
-          status: 'completed',
-          completed_at: new Date().toISOString()
+        .from("terman_tests")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
         })
-        .eq('id', test.id);
+        .eq("id", test.id);
 
       if (updateError) {
-        console.error('Error updating test status:', updateError);
+        console.error("Error updating test status:", updateError);
       }
 
       // Navegar a la página de completado
       navigate(`/terman-test/${token}/completed`);
     } catch (error) {
-      console.error('Error completing test:', error);
+      console.error("Error completing test:", error);
     }
   };
 
@@ -57,6 +57,7 @@ const TermanTestInterfaceInner: React.FC<{ test: TermanTest }> = ({ test }) => {
   return (
     <TermanMerrillTest
       candidateId={test.candidate_id}
+      testToken={token!}
       onComplete={handleTestComplete}
       onCancel={handleCancel}
     />
@@ -68,12 +69,12 @@ const TermanTestInterface = () => {
   const navigate = useNavigate();
   const [test, setTest] = useState<TermanTest | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const loadTest = async () => {
       if (!token) {
-        setError('Token de test no válido');
+        setError("Token de test no válido");
         setLoading(false);
         return;
       }
@@ -81,26 +82,28 @@ const TermanTestInterface = () => {
       try {
         // Buscar el test por token
         const { data: testData, error: testError } = await supabase
-          .from('terman_tests')
-          .select(`
+          .from("terman_tests")
+          .select(
+            `
             *,
             candidate:candidates(id, name, email),
             job:jobs(id, title, company)
-          `)
-          .eq('test_token', token)
+          `,
+          )
+          .eq("test_token", token)
           .single();
 
         if (testError || !testData) {
-          setError('El test no existe, ha expirado o ya fue completado');
+          setError("El test no existe, ha expirado o ya fue completado");
         } else {
           // Verificar si el test ha expirado
           if (new Date(testData.expires_at) < new Date()) {
-            setError('Este test ha expirado');
-          } else if (testData.status === 'completed') {
+            setError("Este test ha expirado");
+          } else if (testData.status === "completed") {
             // Si ya está completado, redirigir a la página de completado
             navigate(`/terman-test/${token}/completed`);
             return;
-          } else if (testData.status === 'pending') {
+          } else if (testData.status === "pending") {
             // Si aún está pendiente, redirigir a la página principal
             navigate(`/terman-test/${token}`);
             return;
@@ -109,7 +112,7 @@ const TermanTestInterface = () => {
           }
         }
       } catch (err) {
-        setError('Error cargando el test');
+        setError("Error cargando el test");
       } finally {
         setLoading(false);
       }
@@ -154,4 +157,4 @@ const TermanTestInterface = () => {
   );
 };
 
-export default TermanTestInterface; 
+export default TermanTestInterface;
