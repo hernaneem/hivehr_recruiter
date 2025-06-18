@@ -5,9 +5,7 @@ import {
   AlertCircle,
   Briefcase,
   Search,
-  Eye,
-  Download,
-  X
+  Eye
 } from 'lucide-react';
 import RavenResultsDashboard from './RavenResultsDashboard';
 import { supabase } from '../lib/supabase';
@@ -39,6 +37,8 @@ const RavenTests: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'cv-approved' | 'test-pending' | 'test-completed'>('all');
   const [resultsModal, setResultsModal] = useState<null | any>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -285,11 +285,8 @@ const RavenTests: React.FC = () => {
                         )}
                         {(candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing') && candidate.raven_test_token && candidate.raven_status !== 'completed' && (
                           <button onClick={() => {
-                            const link = generateRavenLink(candidate.id);
-                            if (link) {
-                              navigator.clipboard.writeText(link);
-                              alert('📋 Enlace copiado!');
-                            }
+                            setSelectedCandidate(candidate);
+                            setShowLinkModal(true);
                           }} className="text-purple-400 hover:text-purple-300 flex items-center space-x-1 transition-colors">
                             <Copy className="h-4 w-4" /><span>Copiar Enlace</span>
                           </button>
@@ -326,6 +323,46 @@ const RavenTests: React.FC = () => {
           </table>
         </div> {/* cierre overflow-x-auto */}
       </div> {/* cierre bg card */}
+      {showLinkModal && selectedCandidate && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-6 w-full max-w-lg">
+            <h3 className="text-lg font-bold text-white mb-4">🧠 Enlace de Test Raven</h3>
+            <p className="text-white/70 text-sm mb-4">Comparte este enlace con <strong className="text-white">{selectedCandidate.name}</strong> para que realice el test de matrices progresivas:</p>
+            <div className="bg-black/20 p-3 rounded-lg mb-4 border border-white/10 text-sm text-white/80 space-y-2">
+              <div><strong>Candidato:</strong> {selectedCandidate.name}</div>
+              <div><strong>Email:</strong> {selectedCandidate.email}</div>
+              <div><strong>Puesto:</strong> {selectedCandidate.position}</div>
+            </div>
+            <div className="bg-black/30 p-4 rounded-lg mb-4 border border-white/10">
+              <div className="text-xs text-white/60 mb-2">Enlace del test:</div>
+              <div className="flex items-center space-x-2">
+                <code className="text-sm text-green-300 break-all font-mono flex-1 p-2 bg-black/30 rounded border">
+                  {generateRavenLink(selectedCandidate.id)}
+                </code>
+                <button onClick={() => {
+                  const link = generateRavenLink(selectedCandidate.id);
+                  if (link) {
+                    navigator.clipboard.writeText(link);
+                    alert('✅ Enlace copiado al portapapeles');
+                  }
+                }} className="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs transition-colors">📋</button>
+              </div>
+            </div>
+            <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <div className="text-xs text-blue-300 mb-1">📋 Instrucciones para el candidato:</div>
+              <ul className="text-xs text-blue-200 space-y-1">
+                <li>• El test tiene una duración aproximada de 45 minutos</li>
+                <li>• Debe completarse en una sola sesión</li>
+                <li>• El enlace expira en 7 días</li>
+                <li>• Trata de completar cada ítem sin adivinar</li>
+              </ul>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setShowLinkModal(false)} className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all font-medium">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {resultsModal && (
         <RavenResultsDashboard
           result={resultsModal}
