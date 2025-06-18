@@ -15,6 +15,11 @@ import { JobsProvider } from './contexts/JobsContext'
 import { CleaverProvider } from './contexts/CleaverContext'
 import { MossProvider } from './contexts/MossContext'
 import { TermanMerrillProvider } from './contexts/TermanMerrillContext'
+import RavenTestPage from './components/RavenTestPage'
+import RavenTestInterface from './components/RavenTestInterface'
+import RavenTestFinishPage from './components/RavenTestFinishPage'
+import RavenTestCompleted from './components/RavenTestCompleted'
+import { RavenProvider } from './contexts/RavenContext'
 
 function App() {
   const { user, loading } = useAuth()
@@ -32,6 +37,7 @@ function App() {
 
   return (
     <Router>
+      <RavenProvider>
       <CleaverProvider>
         <MossProvider>
           <TermanMerrillProvider>
@@ -51,6 +57,12 @@ function App() {
               <Route path="/terman-test/:token/start" element={<TermanTestInterface />} />
               <Route path="/terman-test/:token/completed" element={<TermanTestCompleted />} />
               
+              /* Rutas públicas para tests Raven */
+              <Route path="/raven-test/:token" element={<RavenTestPage />} />
+              <Route path="/raven-test/:token/start" element={<RavenTestInterface />} />
+              <Route path="/raven-test/:token/finish" element={<RavenTestFinishPage />} />
+              <Route path="/raven-test/:token/completed" element={<RavenTestCompleted />} />
+              
               {/* Rutas autenticadas */}
               <Route path="/*" element={
                 user ? (
@@ -65,6 +77,7 @@ function App() {
           </TermanMerrillProvider>
         </MossProvider>
       </CleaverProvider>
+      </RavenProvider>
     </Router>
   )
 }

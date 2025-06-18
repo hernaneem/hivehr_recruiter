@@ -24,10 +24,16 @@ interface Candidate {
   cv_review_date?: string;
   years_experience?: number;
   created_at: string;
+  /* Terman-Merrill */
   terman_status: 'not-started' | 'pending' | 'in-progress' | 'completed' | 'expired';
   invitation_sent: boolean;
   test_id?: string;
   test_token?: string;
+  /* Raven Progressive Matrices */
+  raven_status: 'not-started' | 'pending' | 'in-progress' | 'completed' | 'expired';
+  raven_invitation_sent: boolean;
+  raven_test_id?: string;
+  raven_test_token?: string;
 }
 
 // Lightweight shape for results fetched from terman_results table
@@ -100,18 +106,28 @@ const PsychometricTests: React.FC = () => {
 
       // Obtener tests existentes
       const candidateIds = candidatesData?.map(c => c.id) || [];
-      const { data: testsData, error: testsError } = await supabase
+
+      // Tests Terman-Merrill
+      const { data: termanTestsData, error: termanError } = await supabase
         .from('terman_tests')
         .select('*')
         .in('candidate_id', candidateIds)
         .eq('recruiter_id', user.id);
+      if (termanError) throw termanError;
 
-      if (testsError) throw testsError;
+      // Tests Raven
+      const { data: ravenTestsData, error: ravenError } = await supabase
+        .from('raven_tests')
+        .select('*')
+        .in('candidate_id', candidateIds)
+        .eq('recruiter_id', user.id);
+      if (ravenError) throw ravenError;
 
       // Combinar datos
       const candidatesWithTests = candidatesData?.map(candidate => {
         const analysis = candidate.candidate_analyses?.[0];
-        const test = testsData?.find(t => t.candidate_id === candidate.id);
+        const termanTest = termanTestsData?.find(t => t.candidate_id === candidate.id);
+        const ravenTest = ravenTestsData?.find(t => t.candidate_id === candidate.id);
 
         return {
           id: candidate.id,
@@ -125,10 +141,16 @@ const PsychometricTests: React.FC = () => {
           cv_review_date: analysis?.processed_at,
           years_experience: candidate.years_experience,
           created_at: candidate.created_at,
-          terman_status: test?.status || 'not-started',
-          invitation_sent: !!test?.invitation_sent_at,
-          test_id: test?.id,
-          test_token: test?.test_token
+          /* Terman-Merrill */
+          terman_status: termanTest?.status || 'not-started',
+          invitation_sent: !!termanTest?.invitation_sent_at,
+          test_id: termanTest?.id,
+          test_token: termanTest?.test_token,
+          /* Raven */
+          raven_status: ravenTest?.status || 'not-started',
+          raven_invitation_sent: !!ravenTest?.invitation_sent_at,
+          raven_test_id: ravenTest?.id,
+          raven_test_token: ravenTest?.test_token
         };
       }) || [];
 
@@ -154,7 +176,7 @@ const PsychometricTests: React.FC = () => {
           job_id: jobId,
           recruiter_id: user.id,
           test_token: token,
-          status: 'pending',
+          status: 'not-started',
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 días
           invitation_email_sent: false
         })
@@ -215,6 +237,65 @@ const PsychometricTests: React.FC = () => {
     return '';
   };
 
+  const generateRavenLink = (candidateId: string) => {
+    if (selectedCandidate?.id === candidateId && selectedCandidate?.raven_test_token) {
+      return `${window.location.origin}/raven-test/${selectedCandidate.raven_test_token}`;
+    }
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (candidate?.raven_test_token) {
+      return `${window.location.origin}/raven-test/${candidate.raven_test_token}`;
+    }
+    return '';
+  };
+
+  const createRavenTest = async (candidateId: string, jobId: string) => {
+    if (!user?.id) throw new Error('Usuario no autenticado');
+    try {
+      const token = btoa(`raven_${candidateId}_${Date.now()}_${Math.random()}`);
+      const { data: testData, error: testError } = await supabase
+        .from('raven_tests')
+        .insert({
+          candidate_id: candidateId,
+          job_id: jobId,
+          recruiter_id: user.id,
+          test_token: token,
+          status: 'not-started',
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 días
+          invitation_email_sent: false,
+        })
+        .select()
+        .single();
+      if (testError) throw testError;
+      await loadCandidates();
+      return testData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const sendRavenInvitation = async (candidateId: string) => {
+    try {
+      const candidate = candidates.find(c => c.id === candidateId);
+      if (!candidate?.job_id) {
+        alert('Error: No se puede enviar invitación, falta información del trabajo');
+        return;
+      }
+      const createdTest = await createRavenTest(candidateId, candidate.job_id);
+      const updatedCandidate = {
+        ...candidate,
+        raven_status: 'not-started' as const,
+        raven_invitation_sent: true,
+        raven_test_id: createdTest.id,
+        raven_test_token: createdTest.test_token,
+      } as Candidate;
+      // actualizar lista local
+      setCandidates(prev => prev.map(c => c.id === candidateId ? updatedCandidate : c));
+      alert('✅ Test Raven creado. Usa "Enlace Raven" para compartir.');
+    } catch (error) {
+      alert(`Error enviando invitación Raven: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  };
+
   const viewTermanResults = async (candidate: Candidate) => {
     try {
       // Consultar la tabla terman_results buscando el resultado más reciente del candidato para la vacante
@@ -255,85 +336,6 @@ const PsychometricTests: React.FC = () => {
       alert(`Error cargando resultados: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
-  /* BEGIN DUPLICATED LEGACY BLOCK (commented out)
-    try {
-      if (!candidate.test_id) {
-        alert('No hay test disponible para ver resultados');
-        return;
-      }
-
-      // Obtener resultados del test de Terman-Merrill desde la tabla terman_results
-      const { data: results, error } = await supabase
-        .from('terman_tests')
-        .select(`
-          *,
-          candidate:candidates(*),
-          job:jobs(*)
-        `)
-        .eq('candidate_id', candidate.id).eq('job_id', candidate.job_id || null).order('completed_at', { ascending: false }).limit(1)
-        .single();
-
-      if (error) throw error;
-
-      if (!results || results.length === 0) {
-        alert('No se encontraron resultados para este test');
-        return;
-      }
-
-      // Adaptar formato para el dashboard
-      const dbResult = Array.isArray(results) ? results[0] : results;
-
-      // Adaptar formato para el dashboard
-      const adaptedResults = {
-        id: dbResult.id,
-        candidateId: dbResult.candidate_id,
-        totalScore: dbResult.total_score,
-        mentalAge: dbResult.mental_age,
-        iq: dbResult.iq,
-        iqClassification: dbResult.iq_classification,
-        seriesScores: dbResult.series_scores || [],
-        completedAt: dbResult.completed_at,
-        interpretation: dbResult.interpretation || { strengths: [], weaknesses: [], generalAssessment: '' }
-      };
-
-
-          name: results.candidate?.name || candidate.name,
-          email: results.candidate?.email || candidate.email
-        },
-        job: {
-          title: results.job?.title || candidate.position || 'No especificado',
-          company: results.job?.company
-        },
-        status: results.status || 'completed',
-        completed_at: results.completed_at,
-        time_spent_minutes: results.time_spent_minutes,
-        ci: results.ci,
-        mental_age: results.mental_age,
-        total_score: results.total_score,
-        serie_scores: {
-          serie_i: results.serie_i_score,
-          serie_ii: results.serie_ii_score,
-          serie_iii: results.serie_iii_score,
-          serie_iv: results.serie_iv_score,
-          serie_v: results.serie_v_score,
-          serie_vi: results.serie_vi_score,
-          serie_vii: results.serie_vii_score,
-          serie_viii: results.serie_viii_score,
-          serie_ix: results.serie_ix_score,
-          serie_x: results.serie_x_score
-        },
-        // removed legacy fields: results.// removed legacy fields,
-        strengths: results.strengths,
-
-      };
-
-      setTestResults(adaptedResults);
-      setShowResultsDashboard(true);
-    } catch (error) {
-      alert(`Error cargando resultados: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
-  };
-  */
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -462,8 +464,9 @@ const PsychometricTests: React.FC = () => {
                   Estado CV
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                  Estado Test
+                  Test Terman
                 </th>
+
                 <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
                   Acciones
                 </th>
@@ -487,6 +490,7 @@ const PsychometricTests: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(candidate.terman_status)}
                   </td>
+
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-3">
                       {(candidate.cv_status === 'approved' || candidate.cv_status === 'reviewing') && !candidate.test_token && (
@@ -538,6 +542,8 @@ const PsychometricTests: React.FC = () => {
                           <span>Esperando respuesta</span>
                         </span>
                       )}
+                      
+
                     </div>
                   </td>
                 </tr>

@@ -9,6 +9,7 @@ import type { CandidateWithMossInfo } from '../contexts/MossContext';
 import CleaverResultsDashboard from './CleaverResultsDashboard';
 import MossResultsDashboard from './MossResultsDashboard';
 import PsychometricTests from './PsychometricTests';
+import RavenTests from './RavenTests';
 
 interface Job {
   id: string;
@@ -41,7 +42,7 @@ const Tests = () => {
     exportTestResults: exportMossTestResults
   } = useMoss();
 
-  const [activeTab, setActiveTab] = useState<'cleaver' | 'moss' | 'terman'>('cleaver');
+  const [activeTab, setActiveTab] = useState<'cleaver' | 'moss' | 'terman' | 'raven'>('cleaver');
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateWithTestInfo | null>(null);
 
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -422,7 +423,17 @@ const Tests = () => {
     }
   };
 
-  const currentStats = activeTab === 'cleaver' ? cleaverStats : mossStats;
+  const currentStats = activeTab === 'cleaver'
+    ? cleaverStats
+    : activeTab === 'moss'
+    ? mossStats
+    : {
+        totalCandidates: 0,
+        cvsApproved: 0,
+        testsCompleted: 0,
+        testsPending: 0,
+        testsInProgress: 0
+      };
   const currentLoading = activeTab === 'cleaver' ? cleaverLoading : mossLoading;
   const currentError = activeTab === 'cleaver' ? cleaverError : mossError;
 
@@ -493,6 +504,17 @@ const Tests = () => {
             <Brain className="h-5 w-5" />
             <span>Test Terman-Merrill</span>
           </button>
+          <button
+            onClick={() => setActiveTab('raven')}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+              activeTab === 'raven'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+            }`}
+          >
+            <Brain className="h-5 w-5" />
+            <span>Test Raven (RPM)</span>
+          </button>
         </div>
 
         <p className="text-white/70">
@@ -500,6 +522,8 @@ const Tests = () => {
             ? 'Gestión de evaluaciones Cleaver (DISC) para candidatos'
             : activeTab === 'moss'
             ? 'Gestión de evaluaciones MOSS (Habilidades Interpersonales) para candidatos'
+            : activeTab === 'raven'
+            ? 'Gestión de evaluaciones Raven Progressive Matrices para candidatos'
             : 'Gestión de evaluaciones Terman-Merrill (Inteligencia) para candidatos'
           }
         </p>
@@ -568,7 +592,8 @@ const Tests = () => {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {(activeTab === 'cleaver' || activeTab === 'moss') && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
           <div className="flex items-center justify-between">
             <div>
@@ -609,11 +634,15 @@ const Tests = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Renderizar contenido según pestaña activa */}
       {activeTab === 'terman' ? (
         // Componente de Tests Psicométricos Terman-Merrill
         <PsychometricTests />
+      ) : activeTab === 'raven' ? (
+        // Componente de Raven Progressive Matrices
+        <RavenTests />
       ) : (
         <>
           {/* Filtros */}
