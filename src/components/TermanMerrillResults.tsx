@@ -54,19 +54,19 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
   const getRangeColor = (range: string): string => {
     switch (range) {
       case 'MUY ALTO':
-        return 'text-green-400 bg-green-500/20 border-green-500/30';
+        return 'text-amber-400 bg-amber-500/20 border-amber-500/30';
       case 'ALTO':
-        return 'text-blue-400 bg-blue-500/20 border-blue-500/30';
-      case 'PROMEDIO ALTO':
-        return 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30';
-      case 'PROMEDIO':
         return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
+      case 'PROMEDIO ALTO':
+        return 'text-brown-400 bg-brown-500/20 border-brown-500/30';
+      case 'PROMEDIO':
+        return 'text-amber-300 bg-amber-400/20 border-amber-400/30';
       case 'PROMEDIO BAJO':
-        return 'text-orange-400 bg-orange-500/20 border-orange-500/30';
+        return 'text-yellow-300 bg-yellow-400/20 border-yellow-400/30';
       case 'BAJO':
-        return 'text-red-400 bg-red-500/20 border-red-500/30';
+        return 'text-brown-300 bg-brown-400/20 border-brown-400/30';
       case 'MUY BAJO':
-        return 'text-red-600 bg-red-600/20 border-red-600/30';
+        return 'text-stone-400 bg-stone-500/20 border-stone-500/30';
       default:
         return 'text-white/60 bg-white/10 border-white/20';
     }
@@ -75,10 +75,10 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
   // Obtener color según clasificación CI
   const getIQColor = (classification?: string): string => {
     if (!classification) return 'text-white';
-  if (classification.includes('SUPERIOR')) return 'text-green-400';
+    if (classification.includes('SUPERIOR')) return 'text-amber-400';
     if (classification.includes('PROMEDIO')) return 'text-yellow-400';
-    if (classification.includes('INFERIOR')) return 'text-orange-400';
-    if (classification.includes('DEFICIENCIA')) return 'text-red-400';
+    if (classification.includes('INFERIOR')) return 'text-brown-400';
+    if (classification.includes('DEFICIENCIA')) return 'text-stone-400';
     return 'text-white';
   };
 
@@ -98,7 +98,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-  <div className="w-full max-h-full overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-xl py-8 px-4">
+  <div className="w-full max-h-full overflow-y-auto bg-gradient-to-br from-slate-900 via-amber-900 to-slate-900 rounded-xl py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="bg-white/10 backdrop-blur-md rounded-xl p-8 border border-white/20 mb-6">
@@ -126,7 +126,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
               {onClose && (
                 <button
                   onClick={onClose}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
+                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-lg transition-all"
                 >
                   <span>Cerrar</span>
                   <ChevronRight className="h-5 w-5" />
@@ -141,7 +141,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
           {/* CI */}
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-lg">
+              <div className="bg-gradient-to-r from-amber-500 to-yellow-500 p-3 rounded-lg">
                 <Brain className="h-6 w-6 text-white" />
               </div>
               <span className={`text-4xl font-bold ${getIQColor(result.iqClassification)}`}>
@@ -157,7 +157,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
           {/* Edad Mental */}
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-3 rounded-lg">
+              <div className="bg-gradient-to-r from-amber-500 to-yellow-500 p-3 rounded-lg">
                 <Target className="h-6 w-6 text-white" />
               </div>
               <span className="text-4xl font-bold text-white">
@@ -173,7 +173,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
           {/* Puntuación Total */}
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-3 rounded-lg">
+              <div className="bg-gradient-to-r from-brown-500 to-brown-600 p-3 rounded-lg">
                 <Award className="h-6 w-6 text-white" />
               </div>
               <span className="text-4xl font-bold text-white">
@@ -222,7 +222,7 @@ const TermanMerrillResults: React.FC<TermanMerrillResultsProps> = ({
                 {/* Barra de progreso */}
                 <div className="mt-3 w-full bg-white/10 rounded-full h-2">
                   <div 
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-amber-500 to-yellow-500 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${score.percentageEfficiency}%` }}
                   />
                 </div>

@@ -41,25 +41,25 @@ const Dashboard = () => {
       label: 'Trabajos Activos', 
       value: jobsLoading ? '-' : stats.activeJobs.toString(), 
       icon: Briefcase, 
-      color: 'from-blue-500 to-blue-600' 
+      color: 'from-amber-500 to-amber-600' 
     },
     { 
       label: 'CVs Analizados', 
       value: jobsLoading ? '-' : stats.analyzedCVs.toString(), 
       icon: FileText, 
-      color: 'from-green-500 to-green-600' 
+      color: 'from-brown-500 to-brown-600' 
     },
     { 
       label: 'Match Promedio', 
       value: jobsLoading ? '-' : `${stats.averageMatch}%`, 
       icon: Target, 
-      color: 'from-purple-500 to-purple-600' 
+      color: 'from-amber-600 to-amber-700' 
     },
     { 
       label: 'Trabajos Creados', 
       value: jobsLoading ? '-' : stats.totalJobs.toString(), 
       icon: Clock, 
-      color: 'from-orange-500 to-orange-600' 
+      color: 'from-brown-600 to-brown-700' 
     },
   ];
 
@@ -91,7 +91,7 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button 
                   onClick={() => setActiveTab('create-job')}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white p-4 rounded-lg transition-all transform hover:scale-105 flex items-center space-x-3"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-4 rounded-lg transition-all transform hover:scale-105 flex items-center space-x-3"
                 >
                   <Plus className="h-5 w-5" />
                   <span>Crear Nuevo Trabajo</span>
@@ -136,7 +136,7 @@ const Dashboard = () => {
                   recentJobs.map(job => (
                     <div key={job.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg">
+                        <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-2 rounded-lg">
                           <Briefcase className="h-4 w-4 text-white" />
                         </div>
                         <div>
@@ -200,14 +200,14 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-yellow-900 to-gray-900">
       {/* Header */}
       <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
         <div className="px-6 py-4">
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg">
+              <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-2 rounded-lg">
                 <Brain className="h-6 w-6 text-white" />
               </div>
               <div>
@@ -235,7 +235,7 @@ const Dashboard = () => {
               </button>
               
               <div className="flex items-center space-x-3">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-full">
+                <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-2 rounded-full">
                   <User className="h-5 w-5 text-white" />
                 </div>
                 <div className="hidden md:block">
@@ -269,7 +269,7 @@ const Dashboard = () => {
                     onClick={() => setActiveTab(item.id)}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
                       activeTab === item.id
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white'
                         : 'text-white/70 hover:text-white hover:bg-white/10'
                     }`}
                   >

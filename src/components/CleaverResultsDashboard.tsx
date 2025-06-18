@@ -61,10 +61,12 @@ const CleaverResultsDashboard: React.FC<CleaverResultsDashboardProps> = ({ resul
 
   // Configuración de colores para cada factor DISC
   const discColors = {
-    D: { primary: '#ef4444', secondary: '#fca5a5', light: '#fee2e2' }, // Rojo
-    I: { primary: '#f59e0b', secondary: '#fbbf24', light: '#fef3c7' }, // Amarillo
-    S: { primary: '#10b981', secondary: '#6ee7b7', light: '#d1fae5' }, // Verde
-    C: { primary: '#3b82f6', secondary: '#93c5fd', light: '#dbeafe' }  // Azul
+    // HiveHR bee-inspired palette
+    /// Amber / honey tones for warm branding
+    D: { primary: '#f59e0b', secondary: '#fbbf24', light: '#fef3c7' }, // Amber
+    I: { primary: '#d97706', secondary: '#fdba74', light: '#ffedd5' }, // Dark amber / copper
+    S: { primary: '#92400e', secondary: '#b45309', light: '#fef2e0' }, // Brownish amber
+    C: { primary: '#78350f', secondary: '#a16207', light: '#fef2e0' }  // Dark brown/amber
   };
 
   const discDescriptions = {

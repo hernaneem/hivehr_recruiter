@@ -54,11 +54,12 @@ const MossResultsDashboard: React.FC<MossResultsDashboardProps> = ({ result, onC
 
   // Configuración de colores para cada área MOSS
   const mossColors = {
-    HS: { primary: '#10b981', secondary: '#6ee7b7', light: '#d1fae5', icon: Users },    // Verde - Habilidades Sociales
-    CDRH: { primary: '#3b82f6', secondary: '#93c5fd', light: '#dbeafe', icon: Brain },  // Azul - Capacidad de Dirección
-    CEPI: { primary: '#f59e0b', secondary: '#fbbf24', light: '#fef3c7', icon: Eye },    // Amarillo - Evaluación de Problemas
-    HERI: { primary: '#ef4444', secondary: '#fca5a5', light: '#fee2e2', icon: Heart }, // Rojo - Relaciones Interpersonales
-    SCTRI: { primary: '#8b5cf6', secondary: '#c4b5fd', light: '#ede9fe', icon: Shield } // Morado - Sentido Común
+    // HiveHR bee / hive inspired palette
+    HS: { primary: '#f59e0b', secondary: '#fbbf24', light: '#fef3c7', icon: Users },     // Amber - Habilidades Sociales
+    CDRH: { primary: '#d97706', secondary: '#fdba74', light: '#ffedd5', icon: Brain },   // Dark Amber - Capacidad de Dirección
+    CEPI: { primary: '#92400e', secondary: '#b45309', light: '#fef2e0', icon: Eye },     // Brownish Amber - Evaluación de Problemas
+    HERI: { primary: '#78350f', secondary: '#a16207', light: '#fef2e0', icon: Heart },   // Deep Brown - Relaciones Interpersonales
+    SCTRI: { primary: '#6b3b0a', secondary: '#8f580d', light: '#fdf6e3', icon: Shield }  // Dark Brown - Sentido Común
   };
 
   const mossDescriptions = {
@@ -90,17 +91,17 @@ const MossResultsDashboard: React.FC<MossResultsDashboardProps> = ({ result, onC
   };
 
   const getScoreLevel = (percentage: number) => {
-    if (percentage >= 83) return { level: 'Excelente', color: 'text-green-600', bgColor: 'bg-green-100' };
-    if (percentage >= 64) return { level: 'Bueno', color: 'text-blue-600', bgColor: 'bg-blue-100' };
-    if (percentage >= 42) return { level: 'Aceptable', color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
-    return { level: 'Bajo', color: 'text-red-600', bgColor: 'bg-red-100' };
+    if (percentage >= 83) return { level: 'Excelente', color: 'text-amber-600', bgColor: 'bg-amber-100' };
+    if (percentage >= 64) return { level: 'Bueno', color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
+    if (percentage >= 42) return { level: 'Aceptable', color: 'text-brown-600', bgColor: 'bg-brown-100' };
+    return { level: 'Bajo', color: 'text-stone-600', bgColor: 'bg-stone-100' };
   };
 
   const getRecommendationColor = (recommendation: string) => {
-    if (recommendation.includes('Altamente')) return 'text-green-600 bg-green-100';
-    if (recommendation.includes('Recomendado')) return 'text-blue-600 bg-blue-100';
-    if (recommendation.includes('Aceptable')) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+    if (recommendation.includes('Altamente')) return 'text-amber-600 bg-amber-100';
+    if (recommendation.includes('Recomendado')) return 'text-yellow-600 bg-yellow-100';
+    if (recommendation.includes('Aceptable')) return 'text-brown-600 bg-brown-100';
+    return 'text-stone-600 bg-stone-100';
   };
 
   const exportResults = () => {

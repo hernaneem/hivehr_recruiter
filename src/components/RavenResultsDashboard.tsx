@@ -19,7 +19,7 @@ const RavenResultsDashboard: React.FC<RavenResultsDashboardProps> = ({ result, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-xl bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-xl border border-white/20 shadow-xl relative overflow-hidden">
+      <div className="w-full max-w-xl bg-gradient-to-br from-gray-900 via-yellow-900 to-gray-900 rounded-xl border border-white/20 shadow-xl relative overflow-hidden">
         {/* Close */}
         <button
           className="absolute top-4 right-4 text-white/60 hover:text-white transition"
@@ -40,10 +40,10 @@ const RavenResultsDashboard: React.FC<RavenResultsDashboardProps> = ({ result, o
           {/* Raw score */}
           <div className="bg-white/10 border border-white/20 rounded-lg p-6 text-center">
             <h3 className="text-white/80 mb-4 flex items-center justify-center space-x-2">
-              <TrendingUp className="w-5 h-5 text-purple-400" />
+              <TrendingUp className="w-5 h-5 text-amber-400" />
               <span className="font-medium">Puntuación Total</span>
             </h3>
-            <div className="text-6xl font-extrabold text-purple-400 mb-2">
+            <div className="text-6xl font-extrabold text-amber-400 mb-2">
               {result.rawScore}
             </div>
             <p className="text-white/60">De 60 ítems ( {scorePercent.toFixed(0)}% )</p>
@@ -53,10 +53,10 @@ const RavenResultsDashboard: React.FC<RavenResultsDashboardProps> = ({ result, o
           {result.diagnosticRank && (
             <div className="bg-white/10 border border-white/20 rounded-lg p-6 text-center">
               <h3 className="text-white/80 mb-3 flex items-center justify-center space-x-2">
-                <Award className="w-5 h-5 text-green-400" />
+                <Award className="w-5 h-5 text-amber-300" />
                 <span className="font-medium">Diagnóstico</span>
               </h3>
-              <p className="text-3xl font-semibold text-green-400">{result.diagnosticRank}</p>
+              <p className="text-3xl font-semibold text-amber-300">{result.diagnosticRank}</p>
             </div>
           )}
 
@@ -64,10 +64,10 @@ const RavenResultsDashboard: React.FC<RavenResultsDashboardProps> = ({ result, o
           {typeof result.percentile === 'number' && (
             <div className="bg-white/10 border border-white/20 rounded-lg p-6 text-center">
               <h3 className="text-white/80 mb-3 flex items-center justify-center space-x-2">
-                <TrendingUp className="w-5 h-5 text-cyan-400" />
+                <TrendingUp className="w-5 h-5 text-amber-400" />
                 <span className="font-medium">Percentil</span>
               </h3>
-              <p className="text-3xl font-semibold text-cyan-400">{result.percentile}</p>
+              <p className="text-3xl font-semibold text-amber-400">{result.percentile}</p>
             </div>
           )}
         </div>
